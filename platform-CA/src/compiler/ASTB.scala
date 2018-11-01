@@ -31,7 +31,7 @@ case class FoldLeft1[R<:I](x: ASTB[R],  op:(ASTB[B],ASTB[B] )=>ASTB[B],init:ASTB
 case class ScanRight2[R<:I](x: ASTB[R],y:ASTB[R], op:(ASTB[B],ASTB[B],ASTB[B])=>ASTB[B],init:ASTB[B]) extends ASTB[R]
 case class FoldRight1[R<:I](x: ASTB[R],  op:(ASTB[B],ASTB[B] )=>ASTB[B],init:ASTB[B]) extends ASTB[R]
 
-
+ 
 
 /**  static object using arithmetic parse trees  */
 object ASTB{

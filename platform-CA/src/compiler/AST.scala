@@ -2,69 +2,80 @@ package compiler
 import ASTB._
 /**The 9 locus. Three simplicial locus: V for vertex, E for edge, F for face, 
  * T stands for Transfer, and uses two simplicial locus*/
-
 sealed abstract  class Locus
- class S extends Locus;  final class V extends S;  final class E extends S ;  final class F  extends S
- /*le premier parametre de type dans T[S1,S2] represente le locus simplicial T[V,E] se note eV dans ma notation habituelle **/
- final class T[S1<:S,S2<:S] extends Locus //here S1 should allways be different from S2. LUIDNEL, tu sais comment faire cela?
+class S extends Locus;  final class V extends S;  final class E extends S ;  final class F  extends S
+/*le premier parametre de type dans T[S1,S2] represente le locus simplicial T[V,E] se note eV dans ma notation habituelle **/
+final class T[S1<:S,S2<:S] extends Locus //here S1 should allways be different from S2. LUIDNEL, tu sais comment faire cela?
 
 /**used to compute a string encoding the locus, at compile time. */
 class repr[L <: Locus](val name: String)
 object repr { implicit val nomV = new repr[V]( "V");
-  implicit val nomE = new repr[E]( "E");
-  implicit val nomF = new repr[F]( "F"); 
-  implicit val nomTVE = new repr[T[V,E]]( "vE");  
-  implicit val nomTVF = new repr[T[V,F]]( "vF");
-  implicit val nomTEV = new repr[T[E,V]]( "eV");
-  implicit val nomTEF = new repr[T[E,F]]( "eF");
-  implicit val nomTFV = new repr[T[F,V]]( "fV");
-  implicit val nomTFE = new repr[T[F,E]]( "fE");
-  /*
+implicit val nomE = new repr[E]( "E");
+implicit val nomF = new repr[F]( "F"); 
+implicit val nomTVE = new repr[T[V,E]]( "vE");  
+implicit val nomTVF = new repr[T[V,F]]( "vF");
+implicit val nomTEV = new repr[T[E,V]]( "eV");
+implicit val nomTEF = new repr[T[E,F]]( "eF");
+implicit val nomTFV = new repr[T[F,V]]( "fV");
+implicit val nomTFE = new repr[T[F,E]]( "fE");
+/*
   implicit def nomT[L1<:S,L2<:S](implicit m1 : repr[L1], m2 : repr[L2]) = //compiler call it because it cannot find implicit variable
     new repr[T[L1,L2]]( m1.name.toLowerCase + m2.name);                 //with type T[X][Y] so it look for implicit fonction returning some.
-  */}
+ */}
 
- class CentralSym[S1,S2,S3]
-object CentralSym{
-  implicit val vEv= new CentralSym[V,E,V]
-  implicit val fEf= new CentralSym[F,E,F]
-  implicit val vFe= new CentralSym[V,F,E]
-  implicit val eFv= new CentralSym[E,F,V]
+class CentralSym[S1,S2,S3]
+		object CentralSym{
+	implicit val vEv= new CentralSym[V,E,V];
+	implicit val fEf= new CentralSym[F,E,F];
+	implicit val vFe= new CentralSym[V,F,E];
+	implicit val eFv= new CentralSym[E,F,V];
 }
 
- /** The possible fields type, which combine a locus and a ring type.*/
+/** The possible fields type, which combine a locus and a ring type.*/
 object AST {
- type IntV = AST[V,I]; type IntE = AST[E,I]; type IntF = AST[F,I]
- type IntvE = AST[T[E,V],I]; type InteV = AST[T[V,E],I]
- type IntvF = AST[T[F,V],I]; type IntfV = AST[T[V,F],I]
- type IntfE = AST[T[E,F],I]; type InteF = AST[T[F,E],I]
- type BoolV = AST[V,B]; type BoolE = AST[E,B]; type BoolF = AST[F,B]
- type BooleV = AST[T[E,V],B]; type BoolvE = AST[T[V,E],B]
- type BoolfV = AST[T[F,V],B]; type BoolvF = AST[T[V,F],B]
- type BooleF = AST[T[E,F],B]; type BoolfE = AST[T[F,E],B]
- def v[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,V]])=Broadcast[S1,V,R](arg) // for broadcast, we want to specify only the direction where broadcasting takes place.
- def e[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,E]])=Broadcast[S1,E,R](arg) // this is done using three function e,v,f. 
- def f[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,F]])=Broadcast[S1,F,R](arg)
-//  def binop [L<:Locus, R<:Ring](op:(ASTB[R],ASTB[R] )=>ASTB[R])(implicit m : repr[L]) = Binop[L,R,R,R](op,_:AST[L,R],_:AST[L,R])
-// def orL2[L<:Locus, R<:Ring](implicit m : repr[L]) = binop[L,R](Or[R](_,_))(m) //LUIDNEL ca va pas, je sais meme pas quoi passer dans le code doit y avoir une solution qu'on pige pas. 
-//   def cond[L<:Locus,R<:I] (b:AST[L,B],  arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L])= orL2(m)(andLB2R[L,R](b,arg1),andLB2R(negL(b),arg2))
- def castB2RL[L<:Locus,R<:I]( arg: AST[L,B] )(implicit m : repr[L])  = Unop[L,B,R] (castB2RN[R],arg )
-    def negL[L<:Locus, R<:Ring] ( arg : AST[L,R]) (implicit m : repr[L]) = Unop[L,R,R](negN[R],arg)   
-   def oppL[L<:Locus, R<:I] ( arg : AST[L,R]) (implicit m : repr[L]) = Unop[L,I,I](oppN,arg)   
-   def binop [L<:Locus, R<:Ring] (implicit m : repr[L]) = Binop[L,R,R,R] _  
-  def orL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L]) = Binop[L,R,R,R](orN,arg1,arg2 )
-  def andL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R]) (implicit m : repr[L]) = Binop[L,R,R,R](andN,arg1,arg2 )
- def andLB2R [L<:Locus,R<:I]( arg1 : AST[L,B],arg2 : AST[L,R])(implicit m : repr[L])= andL[L,R](castB2RL[L,R](arg1),arg2)
- def cond[L<:Locus,R<:I] (b:AST[L,B],  arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L])= orL(andLB2R[L,R](b,arg1),andLB2R(negL(b),arg2))
- def addL[L<:Locus] ( arg1 : AST[L,I], arg2 : AST[L,I])(implicit m : repr[L]) = Binop[L,I,I,I](addN,arg1,arg2 ) 
- def minR[S1<:S,S2<:S,R<:I] (arg : AST[T[S1,S2],R])(implicit m : repr[S1]) = Redop[S1,S2,R] ((minN[R],Zero[R]()),arg )   
- def signL[L<:Locus] ( arg1 : AST[L,I] )(implicit m : repr[L]) = Unop[L,I,I ](signN,arg1 ) 
- def minusL[L<:Locus] ( arg1 : AST[L,I], arg2 : AST[L,I])(implicit m : repr[L]) = Binop[L,I,I,I](minusN,arg1,arg2 )  
+	type IntV = AST[V,I]; type IntE = AST[E,I]; type IntF = AST[F,I];
+	type IntvE = AST[T[E,V],I]; type InteV = AST[T[V,E],I];
+	type IntvF = AST[T[F,V],I]; type IntfV = AST[T[V,F],I];
+	type IntfE = AST[T[E,F],I]; type InteF = AST[T[F,E],I];
+	type BoolV = AST[V,B]; type BoolE = AST[E,B]; type BoolF = AST[F,B];
+	type BooleV = AST[T[E,V],B]; type BoolvE = AST[T[V,E],B];
+	type BoolfV = AST[T[F,V],B]; type BoolvF = AST[T[V,F],B];
+	type BooleF = AST[T[E,F],B]; type BoolfE = AST[T[F,E],B];
+	def v[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,V]])=Broadcast[S1,V,R](arg); // for broadcast, we want to specify only the direction where broadcasting takes place.
+	def e[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,E]])=Broadcast[S1,E,R](arg); // this is done using three function e,v,f. 
+	def f[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,F]])=Broadcast[S1,F,R](arg);
+	//  def binop [L<:Locus, R<:Ring](op:(ASTB[R],ASTB[R] )=>ASTB[R])(implicit m : repr[L]) = Binop[L,R,R,R](op,_:AST[L,R],_:AST[L,R])
+	// def orL2[L<:Locus, R<:Ring](implicit m : repr[L]) = binop[L,R](Or[R](_,_))(m) //LUIDNEL ca va pas, je sais meme pas quoi passer dans le code doit y avoir une solution qu'on pige pas. 
+	//   def cond[L<:Locus,R<:I] (b:AST[L,B],  arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L])= orL2(m)(andLB2R[L,R](b,arg1),andLB2R(negL(b),arg2))
+	def castB2RL[L<:Locus,R<:I]( arg: AST[L,B] )(implicit m : repr[L])  = Unop[L,B,R] (castB2RN[R],arg );
+	def negL[L<:Locus, R<:Ring] ( arg : AST[L,R]) (implicit m : repr[L]) = Unop[L,R,R](negN[R],arg)   ;
+	def oppL[L<:Locus, R<:I] ( arg : AST[L,R]) (implicit m : repr[L]) = Unop[L,I,I](oppN,arg)   ;
+	def binop [L<:Locus, R<:Ring] (implicit m : repr[L]) = Binop[L,R,R,R] _  ;
+	def orL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L]) = Binop[L,R,R,R](orN,arg1,arg2 );
+	def andL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R]) (implicit m : repr[L]) = Binop[L,R,R,R](andN,arg1,arg2 );
+	def andLB2R [L<:Locus,R<:I]( arg1 : AST[L,B],arg2 : AST[L,R])(implicit m : repr[L])= andL[L,R](castB2RL[L,R](arg1),arg2);
+	def cond[L<:Locus,R<:I] (b:AST[L,B],  arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L])= orL(andLB2R[L,R](b,arg1),andLB2R(negL(b),arg2));
+	def addL[L<:Locus] ( arg1 : AST[L,I], arg2 : AST[L,I])(implicit m : repr[L]) = Binop[L,I,I,I](addN,arg1,arg2 ) ;
+	def minR[S1<:S,S2<:S,R<:I] (arg : AST[T[S1,S2],R])(implicit m : repr[S1]) = Redop[S1,S2,R] ((minN[R],ConstInt[R](0,1)),arg );   
+	def signL[L<:Locus] ( arg1 : AST[L,I] )(implicit m : repr[L]) = Unop[L,I,I ](signN,arg1 ) ;
+	def minusL[L<:Locus] ( arg1 : AST[L,I], arg2 : AST[L,I])(implicit m : repr[L]) = Binop[L,I,I,I](minusN,arg1,arg2 ) ;
+
+
+	def toString2(a:AST[_,_]):String = a  match {
+	case Broadcast(arg) => a.s+"("+ toString2(arg)+")"
+	case Transfer(arg) => a.s+"("+ toString2(arg)+")"
+	case Sym(arg) => a.s+"("+ toString2(arg)+")"
+	case Unop(_, arg)=> a.s+"("+ toString2(arg)+")"
+	case Redop(_, arg)=> a.s+"("+ toString2(arg)+")"
+	case Binop(_,arg1,arg2)=>  a.s+"("+ toString2(arg1)+ toString2(arg2)+")"
+	case Const(arg) => a.s
+	}
+
 }
 
 sealed abstract class AST[+L<:Locus,+R<:Ring](implicit m : repr[L]) { val s:String = m.name // not necessary, just to remember how to retrieve the name.
- //  lazy val negl=negL(this)
- // lazy val oppl=oppL(this)
+//  lazy val negl=negL(this)
+// lazy val oppl=oppL(this)
 }
 //
 //trait printType[+L<:Locus,+R<:Ring] extends AST[L,R]{
@@ -75,20 +86,81 @@ case class Broadcast[S1<:S,S2<:S,R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S
 case class Transfer[S1<:S,S2<:S,R<:Ring](arg : AST[T[S1,S2],R])(implicit m : repr[T[S2,S1]]) extends AST[T[S2,S1],R] // on souhaite inférer S1 et S2,
 case class Unop[L<:Locus, R1<:Ring, R2<:Ring] (op:ASTB[R1]=>ASTB[R2], arg : AST[L,R1])(implicit m : repr[L]) extends AST[L,R2] 
 case class Binop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring] (op:(ASTB[R1],ASTB[R2] )=>ASTB[R3], arg1 : AST[L,R1], arg2 : AST[L,R2])(implicit m : repr[L]) extends AST[L,R3] 
-//case class Triop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring, R4<:Ring] (op:(ASTB[R1],ASTB[R2],ASTB[R3] )=>ASTB[R4], arg1 : AST[L,R1], arg2 : AST[L,R2], arg3 : AST[L,R3])(implicit m : repr[L]) extends AST[L,R4] 
- case class Redop[S1<:S,S2<:S,R<:Ring](op: redop[ASTB[R]],arg : AST[T[S1,S2],R])(implicit m : repr[S1]) extends AST[S1,R] // on souhaite inférer S1 et S2
+		//case class Triop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring, R4<:Ring] (op:(ASTB[R1],ASTB[R2],ASTB[R3] )=>ASTB[R4], arg1 : AST[L,R1], arg2 : AST[L,R2], arg3 : AST[L,R3])(implicit m : repr[L]) extends AST[L,R4] 
+case class Redop[S1<:S,S2<:S,R<:Ring](op: redop[ASTB[R]],arg : AST[T[S1,S2],R])(implicit m : repr[S1]) extends AST[S1,R] // on souhaite inférer S1 et S2
 case class Const[L<:Locus,R<:Ring](cte:ASTB[R])(implicit m : repr[L]) extends AST[L,R] // on souhaite spécifier L
 case class Sym[S1<:S,S2<:S,S3<:S, R<:Ring](arg : AST[T[S2,S1],R])(implicit m : repr[T[S2,S3]], t : CentralSym[S1,S2,S3]) extends AST[T[S2,S3],R]
-//case class SymF[S2<:S ,R<:Ring] (arg : AST[T[F,S2],R])  extends AST[ T[F,S2==E?V:E]  ,R]  //LUIDNEL pour eviter la prolifération de constructeur,
-   //je voudrais regroupesr SymvF et SymeF en SymF, et ensuite aussi regrouper avec SymE, pour avoir un seul constructeur Sym
+		//case class SymF[S2<:S ,R<:Ring] (arg : AST[T[F,S2],R])  extends AST[ T[F,S2==E?V:E]  ,R]  //LUIDNEL pour eviter la prolifération de constructeur,
+		//je voudrais regroupesr SymvF et SymeF en SymF, et ensuite aussi regrouper avec SymE, pour avoir un seul constructeur Sym
 
 
 
-import AST._
+		/*A layer is defined as a function on a basic spatial type **/
+		abstract class Layer[L<:Locus,R<:Ring]  extends Function1[AST[L,R],AST[L,R]]{
+	// var ensure: List[AST[_,B]] /* Boolean fields which must be true, otherwise bug is detected in layer.*/  
+	//var display: List[AST[_,_]] /*  fields which must be displayed to represent the layer on screen */
+	// var displayable: List[AST[_,_]] /*  fields which could be displayed for undertanding a bug */
+}
 
-/*A layer is defined as a function on a basic spatial type **/
-abstract class Layer[L<:Locus,R<:Ring]  extends Function1[AST[L,R],AST[L,R]]{
- // var ensure: List[AST[_,B]] /* Boolean fields which must be true, otherwise bug is detected in layer.*/  
- //var display: List[AST[_,_]] /*  fields which must be displayed to represent the layer on screen */
- // var displayable: List[AST[_,_]] /*  fields which could be displayed for undertanding a bug */
+object PrettyPrint{
+	/**
+	 * Pretty prints a Scala value similar to its source represention.
+	 * Particularly useful for case classes.
+	 * @param a - The value to pretty print.
+	 * @param indentSize - Number of spaces for each indent.
+	 * @param maxElementWidth - Largest element size before wrapping.
+	 * @param depth - Initial depth to pretty print indents.
+	 * @return
+	 */
+	def prettyPrint(a: Any, indentSize: Int = 2, maxElementWidth: Int = 30, depth: Int = 0): String = {
+			val indent = " " * depth * indentSize
+					val fieldIndent = indent + (" " * indentSize)
+					val thisDepth = prettyPrint(_: Any, indentSize, maxElementWidth, depth)
+					val nextDepth = prettyPrint(_: Any, indentSize, maxElementWidth, depth + 1)
+					a match {
+				// Make Strings look similar to their literal form.
+					case s: String =>
+					val replaceMap = Seq(
+							"\n" -> "\\n",
+							"\r" -> "\\r",
+							"\t" -> "\\t",
+							"\"" -> "\\\""
+							)
+					'"' + replaceMap.foldLeft(s) { case (acc, (c, r)) => acc.replace(c, r) } + '"'
+					// For an empty Seq just use its normal String representation.
+					case xs: Seq[_] if xs.isEmpty => xs.toString()
+					case xs: Seq[_] =>
+					// If the Seq is not too long, pretty print on one line.
+					val resultOneLine = xs.map(nextDepth).toString()
+					if (resultOneLine.length <= maxElementWidth) return resultOneLine
+							// Otherwise, build it with newlines and proper field indents.
+							val result = xs.map(x => s"\n$fieldIndent${nextDepth(x)}").toString()
+							result.substring(0, result.length - 1) + "\n" + indent + ")"
+							// Product should cover case classes.
+					case p: Product =>
+					val prefix = p.productPrefix
+					// We'll use reflection to get the constructor arg names and values.
+					val cls = p.getClass
+					val fields = cls.getDeclaredFields.filterNot(_.isSynthetic).map(_.getName)
+					val values = p.productIterator.toSeq
+					// If we weren't able to match up fields/values, fall back to toString.
+					if (fields.length != values.length) return p.toString
+							fields.zip(values).toList match {
+						// If there are no fields, just use the normal String representation.
+							case Nil => p.toString
+									// If there is just one field, let's just print it as a wrapper.
+							case (_, value) :: Nil => s"$prefix(${thisDepth(value)})"
+							// If there is more than one field, build up the field names and values.
+							case kvps =>
+							val prettyFields = kvps.map { case (k, v) => s"$fieldIndent$k = ${nextDepth(v)}" }
+							// If the result is not too long, pretty print on one line.
+							val resultOneLine = s"$prefix(${prettyFields.mkString(", ")})"
+							if (resultOneLine.length <= maxElementWidth) return resultOneLine
+									// Otherwise, build it with newlines and proper field indents.
+									s"$prefix(\n${prettyFields.mkString(",\n")}\n$indent)"
+					}
+					// If we haven't specialized this type, just use its toString.
+					case _ => a.toString
+			}
+	}
 }

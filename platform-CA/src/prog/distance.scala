@@ -20,29 +20,29 @@ import Compiler._
 //    }
   
   
-  
-abstract class TestAPI extends LanguageStdlib {
-  val c =new Circuit()
-  val t = layer[V,SI](c) 
-  val source = const[V,B](c, True()) 
-  val Ethis=transfer(e(t));
-  val next=addL(t,cond(source, signL(oppL(t)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))));
-}
+//  
+//abstract class TestAPI extends LanguageStdlib {
+//  val c =new Circuit() 
+//  val source = const[V,B](c, True()) 
+//  val Ethis=transfer(e(t));
+//  val next=addL(t,cond(source, signL(oppL(t)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))));
+//}
 
 
-abstract class Program extends LanguageStdlib { 
- class DistanceAPI(c:Circuit, val source:Field[V,B])(implicit m : repr[V]) extends LayerTest[V,SI](c)    {
+ class Program extends   LanguageStdlib  with  LanguageImpl  { 
+ class DistanceAPI(c:Circuit, val source:Field[V,B])  extends Layer[V,SI](c)     {
+    val fauxThis= const[V,SI](c, True())
     val Ethis=transfer(e(this))
-    val next=addL(this,cond(source, signL(oppL(this)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))))
-   // next.user+=this  
+    val toto=addL(fauxThis,cond(source, signL(oppL(fauxThis)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))))
+  
+    val next=toto
+    // next.user+=this  
     }
   val c1=new Circuit(){
     val src = const[V,B](this,True()); 
-     val dist = new DistanceAPI(this,src);
+    val dist = new DistanceAPI(this,src);
   }
-   
 }
-
 
 object Test { //  def g[L<:Locus](t:AST[L,B])(implicit m : repr[L]) = m.name; exemple de implicit que je conserve.
    def main(args: Array[String]) { 
@@ -54,8 +54,7 @@ object Test { //  def g[L<:Locus](t:AST[L,B])(implicit m : repr[L]) = m.name; ex
       //println(test+" "+    test.s) 
     //println(dd.next)
    }
-     val p = new Program with LanguageImpl;
-    compile(p.c1);
-    println(p.c1)
+     val p  = new Program()  
+     compile(p.c1);     println(p.c1)
  
 }

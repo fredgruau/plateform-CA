@@ -2,25 +2,60 @@ package prog
 
 import compiler.ASTB._
 import compiler.AST._
-
 import compiler._
+import Compiler._
+//
+//  class Distance(c:Circuit, val source:BoolV)(implicit m : repr[V]) extends Layer[V,I](c)  {
+//    val Ethis=transfer(e(this))
+//    val next=addL(this,cond(source, signL(oppL(this)), minR(Transfer(signL(minusL(Ethis, addL(Ethis ,Const[T[E,V],I](c,ConstInt(-2,2)))))))))
+//    next.user+=this  
+//    }
 
-case class Distance(source:BoolV) extends Layer[V,I]{
-    def apply(d:IntV)=addL(d,cond(source, signL(oppL(d)), minR(Transfer(signL(minusL(Transfer(e(d)), addL(Transfer(e(d)) ,Const[T[E,V],I](ConstInt(-2,2)))))))))
-                 
+//
+//
+//  class Distance2(c:Circuit, val source:BoolV)(implicit m : repr[V]) extends Layer[V,I](c)  with LanguageStdlib {
+//    val Ethis=transfer(e(this))
+//    val next=addL(this,cond(source, signL(oppL(this)), minR(Transfer(signL(minusL(Ethis, addL(Ethis ,Const[T[E,V],I](c,ConstInt(-2,2)))))))))
+//    next.user+=this  
+//    }
+  
+  
+  
+abstract class TestAPI extends LanguageStdlib {
+  val c =new Circuit()
+  val t = layer[V,SI](c) 
+  val source = const[V,B](c, True()) 
+  val Ethis=transfer(e(t));
+  val next=addL(t,cond(source, signL(oppL(t)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))));
+}
+
+
+abstract class Program extends LanguageStdlib { 
+ class DistanceAPI(c:Circuit, val source:Field[V,B])(implicit m : repr[V]) extends LayerTest[V,SI](c)    {
+    val Ethis=transfer(e(this))
+    val next=addL(this,cond(source, signL(oppL(this)), minR(transfer(signL(minusL(Ethis, addL(Ethis ,const[T[E,V],SI](c,ConstInt(-2,2)))))))))
+   // next.user+=this  
+    }
+  val c1=new Circuit(){
+    val src = const[V,B](this,True()); 
+     val dist = new DistanceAPI(this,src);
   }
+   
+}
+
 
 object Test { //  def g[L<:Locus](t:AST[L,B])(implicit m : repr[L]) = m.name; exemple de implicit que je conserve.
-   def main(args: Array[String]) {
-     val t= Const[V,B](True[B]()) 
-     val d=Const[V,I](ConstInt(1,1)) 
-     val u=e(d) 
-     val source=Const[V,B](True())
-     val dE=Transfer(e(d))
-     val gradient:IntvE=minusL(dE , Sym(dE ))
-     val test  =  addL(d,cond(source, signL(oppL(d)), minR(Transfer(signL(addL(gradient,Const[T[E,V],I](ConstInt(-2,2) )))))))
-     val dd=Distance(source)
-      println(test+" "+    test.s) 
-     println ( dd)
+   def main(args: Array[String]) { 
+//     val c1=new Circuit(){
+//      val source = Const[V,B](this,True()); 
+     //val dist = new Distance(this,source);
+     
+     
+      //println(test+" "+    test.s) 
+    //println(dd.next)
    }
+     val p = new Program with LanguageImpl;
+    compile(p.c1);
+    println(p.c1)
+ 
 }

@@ -8,8 +8,7 @@ class B extends Ring  //le type boolean
 class  I extends B     //le type entier etends boolean, car or,and,xor sont defini pour les entiers.
 final class UI extends I    //unsigned int
 final class SI extends I    //signed int
-final class  P[R<:I] extends I     //le type partial entier etends entiers.
-
+ //partial int will be treated using library
 
 /**  parse tree of arithmetic expression   */
 sealed abstract class ASTB[+R<:Ring]
@@ -50,12 +49,12 @@ object ASTB{
 	def carry (x:ASTB[B],y:ASTB[B],z:ASTB[B]) = Or(And(x,y),And(z,Or(x,y) ) ) ; //boolean computation used by add
 	def add[R<:I](x:ASTB[R],y:ASTB[R]) = Xor(Xor(x,y),ScanRight2(x,y, carry, False())); // addition must be programmed
 	def addN[R<:I]  = new op2[R]("add", add ) ;
-	def opp[R<:I]( x:ASTB[R])= add(Neg(x),ConstInt(1,1));
-	def oppN[R<:I]  = new op1[R]("opp", opp )  ;
-	def minus[R<:I](x:ASTB[R],y:ASTB[R]) =  add(x,opp(y)) ; 
-	def minusN[R<:I]  = new op2[R]("minus", minus ) ;
-	def sign[R<:I](x:ASTB[R]) = x;// TODO
-	def signN[R<:I]  = new op1[R]("sign", opp )  ;
+	def opp ( x:ASTB[SI]): ASTB[SI]= add(Neg(x),ConstInt(1,1));
+	def oppN   = new op1[SI]("opp", opp )  ;
+	def minus[R<:I](x:ASTB[SI],y:ASTB[SI]) =  add(x,opp(y)) ; 
+	def minusN[R<:I]  = new op2[SI]("minus", minus ) ;
+	def sign (x:ASTB[SI]) = x;// TODO
+	def signN   = new op1[SI]("sign", sign )  ;
 	def minN[R<:I]  = new op2[R]("min", (arg1,arg2)=> arg1 );
 	def notNull[R<:I](x:ASTB[R])= Reduce(x,or[B]) ;// LUID: or2 ne prends pas de parenthèse, même vide
 }

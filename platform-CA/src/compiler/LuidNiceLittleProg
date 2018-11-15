@@ -1,0 +1,99 @@
+
+MEMOIZING FUNCTIONS
+https://medium.com/musings-on-functional-programming/scala-optimizing-expensive-functions-with-memoization-c05b781ae826
+
+**************************************
+Ce programme montre qu'on peut appeller les constructeurs de fields sous forme de methode, ce qui permet 
+de ne pas utiliser de parentheses, et qui est bien car il y en a beaucoup des parentheses.
+
+import scala.language.implicitConversions
+
+class Ast[L,R]
+
+class AstInt[L](a : Ast[L,Int]) {
+  def f() = 1//add(a,a)
+  def g() = 2//add(a,a)
+}
+
+class AstV[R](a : Ast[Vector[Boolean],R]) {
+  def h() = 3
+  def i() = 4
+}
+
+implicit def canonicL[L](a : Ast[L,Int]) : AstInt[L] = new AstInt(a)
+implicit def canonicR[R](a : Ast[Vector[Boolean],R]) : AstV[R] = new AstV(a)
+
+val a = new Ast[Vector[Boolean],Int]
+a.f()
+a.h()
+
+************************************************************************************
+Ce programme montre comment présenter une interface a l'utilisateur,
+et ensuite implementer cet interface avec le compilateur (avec un arbre abstrait chargé)
+
+import scala.language.higherKinds
+
+abstract class Locus
+abstract class V extends Locus
+
+abstract class Ring
+abstract class B extends Ring
+
+trait Language {
+  type Layer[L <: Locus, R <: Ring]
+  type Field[L <: Locus, R <: Ring]
+
+  def const[L <: Locus](b : Boolean) : Field[L,B]
+  def and[L <: Locus](arg1 : Field[L,B], arg2 : Field[L,B]) : Field[L,B]
+  def or[L <: Locus](arg1 : Field[L,B], arg2 : Field[L,B]) : Field[L,B]
+  def not[L <: Locus](arg1 : Field[L,B]) : Field[L,B]
+}
+
+trait LanguageStdlib extends Language {
+  def xor[L <: Locus](arg1 : Field[L,B], arg2 : Field[L,B]) = or( and( arg1, !arg2), and( !arg1, arg2))
+}
+
+abstract class Program extends LanguageStdlib {
+  val t = const[V](true)
+  val f = const[V](false)
+  val d = and(t,f)
+  def getT = t
+}
+
+trait LanguageImpl extends Language {
+  case class FieldImpl[L <: Locus, R <: Ring](b : Boolean)
+
+  type Layer[L <: Locus, R <: Ring] = FieldImpl[L,R]
+  type Field[L <: Locus, R <: Ring] = FieldImpl[L,R]
+
+  def const[L <: Locus](b : Boolean) = FieldImpl[L,B](b)
+  def and[L <: Locus](arg1 : Field[L,B], arg2 : Field[L,B]) = FieldImpl[L,B](arg1.b & arg2.b)
+  def or[L <: Locus](arg1 : Field[L,B], arg2 : Field[L,B]) = FieldImpl[L,B](arg1.b | arg2.b)
+  def not[L <: Locus](arg1 : Field[L,B]) : Field[L,B] = FieldImpl[L,B](! arg1.b)
+}
+
+val p = new Program with LanguageImpl;
+p.t
+p.f
+p.d
+
+
+*******************************************************************************
+Ce programme montre comment je peut implementer neg sans parentheses
+import scala.language.implicitConversions
+
+class R (val x : Int, val y :Int);
+
+class EnrichedR (r : R) {
+  def unary_! = r.x;
+}
+object EnrichedR {
+  implicit def enrichR (r : R) = new EnrichedR(r);
+}
+
+
+class Test extends App {
+   val r = new R(3,5);
+   println( ! (new EnrichedR(r)))
+}
+

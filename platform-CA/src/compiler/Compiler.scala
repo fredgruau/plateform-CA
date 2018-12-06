@@ -1,12 +1,11 @@
 package compiler 
-import scala.collection.mutable.Map
-import Circuit._ 
+import scala.collection.mutable.Map 
 object Compiler {
-  
-  def makeInstr (a:AST[_<:Locus,_<:Ring]):Instruction= a   match {
-	case l:Layer[_,_]  => Memorize(l)  
-	case _ =>   null
-  }
+//  
+//  def makeInstr (a:AST[_<:Locus,_<:Ring]):Instruction= a   match {
+//	case l:LayerAST[_,_]  => Memorize(l)  
+//	case _ =>   null
+// }
   
   
   def compile(c:Circuit){
@@ -23,7 +22,12 @@ object Compiler {
 //  
 //      val sendInst:List[Send]= c.nodes.toList collect { case Transfer(e) => Send(e)}
 //      val memInst:List[Memorize] =  c.nodes.toList collect { case e:Layer[_,_] => Memorize(e)} //je voudrais Memorize(e.next) mais ca marche pas avec les types
-    Name.setName(c," ");
+    c.evalDelayed();
+    Name.setName(c,"");
+   // println(c);
+     
+     c.getCycle match{case  Some(path)  => throw new RuntimeException("cycle detected in AST:"+path )}
+ 
   
   }
 }

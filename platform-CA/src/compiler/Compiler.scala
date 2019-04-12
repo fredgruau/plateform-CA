@@ -26,7 +26,8 @@ object Compiler {
     Name.setName(c,"");
    // println(c);
      
-     c.getCycle match{case  Some(path)  => throw new RuntimeException("cycle detected in AST:"+path )}
+     c.getCycle match{case  Some(path)  => throw new RuntimeException("cycle detected in AST:"+path )
+     case None =>}
  
   
   }

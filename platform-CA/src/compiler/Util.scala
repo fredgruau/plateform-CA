@@ -30,7 +30,7 @@ class  Util  extends TestCase {
 trait Bag {def elt:List[Bag]}
 trait EmptyBag extends Bag{  def elt:List[Bag]=List.empty}
 trait Singleton extends Bag{ val arg:Bag; def elt:List[Bag]=List(arg)}
-trait Doubleton extends Bag{ val arg1:Bag;val arg2:Bag; def elt:List[Bag]=List(arg1,arg2)}
+trait Doubleton extends Bag{ val arg:Bag;val arg2:Bag; def elt:List[Bag]=List(arg,arg2)}
 trait Neton extends Bag{ val args:Seq[Bag] ; def elt:List[Bag]=args.toList}
 
 trait Bags {  def all:Set[Bag]}

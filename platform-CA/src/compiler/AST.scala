@@ -6,7 +6,6 @@ import scala.collection.mutable.ListBuffer
 import scala.language.higherKinds
 
 
-
 /**The 9 locus. Three simplicial locus: V for vertex, E for edge, F for face, */
 sealed abstract  class Locus
 class S extends Locus;  final class V extends S;  final class E extends S ;  final class F  extends S
@@ -34,11 +33,10 @@ class Red2[S1,S2,S3]
 object Red2{
 	implicit val VEF= new Red2[V,E,F];	 
 }
-object AST { 
-  
- def displayableIn(l:LayerAST[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.displayable(f)
- def displayIn(l:LayerAST[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.display(f)
- def bugIfIn(l:LayerAST[_<:Locus,_<:Ring] ,f:AST[_<:Locus,B]) = l.bugIf(f)
+object AST {   
+ def displayableIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.displayable(f)
+ def displayIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.display(f)
+ def bugIfIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,B]) = l.bugIf(f)
  //def layer[L<:Locus,R<:Ring](c:Circuit,nbit:Int )(implicit m : repr[L])=  LayerAST(c,nbit)
 //def setPred[L<:Locus,R<:Ring](l:LayerAST[L,R],f:AST[L,R]){l.setPred(f)}
 // def setNext[L<:Locus,R<:Ring](l:LayerAST[L,R],f:AST[L,R]){l.setNext(f)}
@@ -95,58 +93,42 @@ object AST {
     xorL(y,halve(y)) }  
 	
 	
-def toString3( a:AST[_,_]):String =  
+def toStringNode( a:AST[_,_]):String =  
  ( a   match {
-	case LayerAST(_,_) =>  "Layer"+a.locus
+	case Layer(_,_) =>  "Layer"+a.locus + " "
 	case Const(_,cte) =>cte.toString+a.locus	
 	case Binop(op,arg1,arg2)=>  op.toString    
   case Multop(op,args)=>  op.toString  
 	case Unop(op, arg)=>  op.toString  
-	case Redop(op, arg)=> "/"+op.toString  
-	case Redop2(op, arg)=> "//"+op.toString  
- 	case Broadcast(arg) =>  "*"+arg.locus 
+	case Redop(op, arg)=> "red"+op.toString  
+	case Redop2(op, arg)=> "red2"+op.toString  
+ 	case Broadcast(arg) =>  "Broadcast"+arg.locus 
 	case Transfer(arg) =>  "receive " 
-	case Sym(arg) =>  "<-> " 
+	case Sym(arg) =>  "sym " 
 	case Delayed(arg,c,nbit) => "delayed "  
-	}) + "_"+ (if(a.name==null) "null" else a.name)
+	}) 
+	//+ "_"+ (if(a.name==null) "null" else a.name)
    
   
-  def toString2(firstCall:Boolean,a:AST[_,_]):String =
+  def toStringTree(firstCall:Boolean,a:AST[_,_]):String =
    if(!firstCall & a.affected ) a.name
 	 else 	a   match {
-	case LayerAST(_,_) =>  "Layer"+a.locus
-	case Const(_,cte) =>cte.toString+a.locus	case Binop(op,arg1,arg2)=>  op.toString+ "("+  toString2(false,arg1)+ ","+toString2(false,arg2)+")"
-  case Multop(op,args)=>  op.toString + "(" + " "+  ("" /: args) (_ +" "+ toString2(false,_))  + ")"
-	case Unop(op, arg)=>  op.toString +" "+  toString2(false,arg)
-	case Redop(op, arg)=> "/"+op.toString +" "+ toString2(false,arg)
-	case Redop2(op, arg)=> "//"+op.toString +" "+ toString2(false,arg)
- 	case Broadcast(arg) =>  "*"+arg.locus+" "+ toString2(false,arg) 
-	case Transfer(arg) =>  "receive " //+  toString2(false,arg) 
-	case Sym(arg) =>  "<-> "+ toString2(false,arg)
-	case Delayed(arg,c,nbit) => "delayed " +  toString2(false,arg())
+	case Layer(_,_) =>  "Layer"+a.locus + " "
+	case Const(_,cte) =>cte.toString+a.locus	
+	case Binop(op,arg1,arg2)=>  op.toString+ "("+  toStringTree(false,arg1)+ ","+toStringTree(false,arg2)+")"
+  case Multop(op,args)=>  op.toString + "(" + " "+  ("" /: args) (_ +" "+ toStringTree(false,_))  + ")"
+	case Unop(op, arg)=>  op.toString +" "+  toStringTree(false,arg)
+	case Redop(op, arg)=> "red"+op.toString +" "+ toStringTree(false,arg)
+	case Redop2(op, arg)=> "red2"+op.toString +" "+ toStringTree(false,arg)
+ 	case Broadcast(arg) =>  "Broadcast"+arg.locus+" "+ toStringTree(false,arg) 
+	case Transfer(arg) =>  "transfer "  +  toStringTree(false,arg) 
+	case Sym(arg) =>  "sym"+ toStringTree(false,arg)
+	case Delayed(arg,c,nbit) => "delayed " +  toStringTree(false,arg())
 	}
-}
 
-trait Named {
-  var name:String=null;  def setName(value: String) {name = value  };
- def addAfter(value: String) {name =  name+value  };def addBefore(value: String) {name =  value+name  }
-}
 
-sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (implicit m : repr[L]) extends Named with Bag { 
-  /** not necessary, just to remember how to retrieve the name*/
-  val locus:String = m.name 
- /**  records user of this AST so as to detect when  it is used more than once, and e should be stored. */
-  var user= new ListBuffer[AST[_,_]]() //  Careful Expression can be stored also if displayed, displayable, ensured-condition, live 
- /**Circuit to which belong the node, initialized on leaf, and then transmitted */
-  c.addNode(this)
-  /**true if expression is stored in a variable */
-  def affected:Boolean=c.affect.contains(this)
-  def shown()=if(affected) c.affect(this).shown else false
-  def hidden()=if(affected) c.affect(this).hidden else false
- 	override def toString:String=AST.toString3( this)
-} 
 /**stores a list of  ensure boolV and display in order to get name related to the layers.  */
- abstract case class LayerAST[L<:Locus, R<:Ring](override val  c:Circuit,override val nbit:Int )(implicit m : repr[L]) extends AST[L,R](c,nbit) with EmptyBag{
+ abstract case class Layer[L<:Locus, R<:Ring](override val  c:Circuit,override val nbit:Int )(implicit m : repr[L]) extends AST[L,R](c,nbit) with EmptyBag{
    /** the value at t, which  is represented as  the layer itself.*/
    val pred:AST[L,R]=this;  
   /**value of the layer at t+1, mutable, since before computing the next value, we need to create other layers.  */
@@ -162,12 +144,12 @@ sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (im
 	 var displayable: List[AST[_<:Locus,_<:Ring]] =List();def displayable(a:AST[_<:Locus,_<:Ring]){displayable=a::displayable}
 	 /** computes affectation for debug, displayed, displayable variables
 	  *  The elements of the right operand will "overwrite" the elements of the left one, because ensure > displayed > displayable */
-	 def affect=   displayable.map (e=>(e,Displayable(e))) :::   display.map (e=>(e,Display(e))) :::    bugIf.map (e=>(e,Ensure(e))) 
+	 def affect=   displayable.map (e=>(e,new Displayable(e))) :::   display.map (e=>(e,new Display(e))) :::    bugIf.map (e=>(e,new Ensure(e))) 
 }
 case class Const[L<:Locus,R<:Ring](override val  c:Circuit ,cte:ASTB[R])(implicit m : repr[L]) extends AST[L,R](c,cte.nbit) with EmptyBag
-case class Binop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring] (op:(ASTB[R1],ASTB[R2] )=>ASTB[R3], arg1 : AST[L,R1], arg2 : AST[L,R2])(implicit m : repr[L]) 
-   extends AST[L,R3](arg1.c, nbit[R1,R2,R3](arg1.nbit, arg2.nbit, op)) with Doubleton
- {arg1.user+=this;arg2.user+=this;assertEquals(arg1.c, arg2.c) }
+case class Binop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring] (op:(ASTB[R1],ASTB[R2] )=>ASTB[R3], arg : AST[L,R1], arg2 : AST[L,R2])(implicit m : repr[L]) 
+   extends AST[L,R3](arg.c, nbit[R1,R2,R3](arg.nbit, arg2.nbit, op)) with Doubleton
+ {arg.user+=this;arg2.user+=this;assertEquals(arg.c, arg2.c) }
 case class Broadcast[S1<:S,S2<:S,R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,S2]],m2 : repr[T[S2,S1]]) extends AST[T[S1,S2],R](arg.c,arg.nbit) with Singleton
  {arg.user+=this  }
 case class Transfer[S1<:S,S2<:S,R<:Ring](arg : AST[T[S1,S2],R])(implicit m : repr[T[S2,S1]]) extends AST[T[S2,S1],R](arg.c,arg.nbit) with Singleton
@@ -187,4 +169,20 @@ case  class Delayed[L<:Locus, R<:Ring](_arg:() => AST[L,R],override val c:Circui
  {c.addDelayed(this);lazy val arg={ _arg().user+=this;_arg() } }
 
    
+}
+
+
+sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (implicit m : repr[L]) extends Named with Bag { 
+  /** not necessary, just to remember how to retrieve the name*/
+  val locus:String = m.name 
+ /**  records user of this AST so as to detect when  it is used more than once, and e should be stored. */
+  var user= new ListBuffer[AST[_,_]]() //  Careful Expression can be stored also if displayed, displayable, ensured-condition, live 
+ /**Circuit to which belong the node, initialized on leaf, and then transmitted */
+  c.addNode(this)
+  /**true if expression is stored in a variable */
+  def affected:Boolean=c.affect.contains(this)
+  def shown()=if(affected) c.affect(this).shown else false
+  def hidden()=if(affected) c.affect(this).hidden else false
+ 	override def toString:String=AST.toStringNode( this)
+} 
  

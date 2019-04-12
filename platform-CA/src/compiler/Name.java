@@ -12,7 +12,7 @@ public class Name {
 	static int nbCap(String s){int caps=0; for (int i=0; i<s.length(); i++)  if (Character.isUpperCase(s.charAt(i))) caps++; return caps;};
 	
   /**for hashtable, name = connteneur name + hashtablename + "yyy*+ the key name. */
-	public static void setName(Object conteneur, String conteneurName) {		Class c = conteneur.getClass();
+	public static void setName(Named conteneur, String conteneurName) {		Class c = conteneur.getClass();
 	  do {java.lang.reflect.Field[] fs = c.getDeclaredFields();
 	  for (java.lang.reflect.Field f : fs) {	Object o2 = null;	f.setAccessible(true);String fieldName = f.getName();	try {	o2 = f.get(conteneur);
 		} catch (IllegalArgumentException e) {	e.printStackTrace();		} catch (IllegalAccessException e) {e.printStackTrace();}
@@ -27,11 +27,12 @@ public class Name {
 
 	static int compteurToto=0;
 	/**When a field is accessed through different path, each path give a possible name, we want to minimise the path length, wich the number of uppercap */
-	public static void setNameField(Object conteneur, String conteneurName,Named fieldToName ,String fieldName) {	
+	public static void setNameField(Named conteneur, String conteneurName,Named fieldToName ,String fieldName) {	
 		if(fieldName==null) fieldName="toto"+compteurToto++;
-		Boolean hide= (fieldToName instanceof AST) ? ((AST) fieldToName).hidden():true;
+		Boolean hide= (fieldToName instanceof AST) ? ((AST) fieldToName).hidden():true; 
+		 
 		if(fieldName.charAt(0)=='_') 	{fieldName=fieldName.substring(1);hide=true;}; 
-		//if( ! conteneur.doNotUseForName.contains(fieldName) )  
+		 if( Named.OkToUseForName(fieldName) )  
 		{	if (!conteneurName.equals("")) 	fieldName = ("" + fieldName.charAt(0)).toUpperCase() + fieldName.substring(1).toLowerCase();
 		    //if(fieldToName.ignoreForName)  	fieldName="";
 	     	if (fieldToName.name() == null || fieldToName.name() != null && nbCap(fieldToName.name()) > nbCap(conteneurName + fieldName)	)

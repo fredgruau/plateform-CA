@@ -4,7 +4,7 @@ import scala.collection.mutable.ListBuffer
 import compiler.AST._ 
  
  /**Analysed by the compiler to produce a CA rule */
-class Circuit extends Bags with BagLibrary with   Named{
+class Circuit extends    Named{
   private var delayed:Vector[Delayed[_<:Locus,_<:Ring]]=Vector.empty
   def addDelayed(d:Delayed[_<:Locus,_<:Ring])={delayed=delayed:+d}
   /**for evaluation of arg which was lazy, delayed, this can result in adding more arg.  */

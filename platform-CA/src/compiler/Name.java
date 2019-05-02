@@ -20,7 +20,7 @@ public class Name {
 	    else if (o2 instanceof HashMap ) { 
 		   HashMap m = (HashMap<?, ?>) o2;	for ( Object  a :m.entrySet())  {Object key = ((Map.Entry) a).getKey(); Object value =  ((Map.Entry) a).getValue();
 	        if(value instanceof Named && key  instanceof Named  )  setNameField(  conteneur,  conteneurName+fieldName+"yyy" , (Named)value  , ((Named)key).name());
-	        else if(value instanceof Named && key  instanceof Integer  )  setNameField(  conteneur,  conteneurName+fieldName+"yyy" , (Named)value  , ""+((Integer)key) );
+	        else if(value instanceof Named && key  instanceof Integer  )  setNameField(  conteneur,  conteneurName+fieldName+"yyy" , (Named)value  , ""+(key) );
 	                		} }  }
 	  c = c.getSuperclass();
 	} while (c != Object.class); }

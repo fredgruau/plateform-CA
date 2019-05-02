@@ -33,6 +33,8 @@ class Red2[S1,S2,S3]
 object Red2{
 	implicit val VEF= new Red2[V,E,F];	 
 }
+
+
 object AST {   
  def displayableIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.displayable(f)
  def displayIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.display(f)
@@ -126,12 +128,19 @@ def toStringNode( a:AST[_,_]):String =
 	case Delayed(arg,c,nbit) => "delayed " +  toStringTree(false,arg())
 	}
 
+//we introduce subtrait of bags to automatize the computation of the elements which can be zero, one, two or severals. 
+trait EmptyBag extends Dag{  def neighbor:List[Dag]=List.empty}
+trait Singleton extends Dag{ val arg:Dag; def neighbor:List[Dag]=List(arg)}
+trait Doubleton extends Dag{ val arg:Dag;val arg2:Dag; def neighbor:List[Dag]=List(arg,arg2)}
+trait Neton extends Dag{ val args:Seq[Dag] ; def neighbor:List[Dag]=args.toList}
+
+
 
 /**stores a list of  ensure boolV and display in order to get name related to the layers.  */
  abstract case class Layer[L<:Locus, R<:Ring](override val  c:Circuit,override val nbit:Int )(implicit m : repr[L]) extends AST[L,R](c,nbit) with EmptyBag{
    /** the value at t, which  is represented as  the layer itself.*/
    val pred:AST[L,R]=this;  
-  /**value of the layer at t+1, mutable, since before computing the next value, we need to create other layers.  */
+  /**value of the layer at t+1, it is abstract, since before computing the next value, we need probably to create other layers.  */
  val next:AST[L,R];
    // def setNext(l:AST[L,R]){next=l};
   
@@ -167,12 +176,18 @@ case class Sym[S1<:S,S2<:S,S3<:S, R<:Ring](arg : AST[T[S2,S1],R])(implicit m : r
  {arg.user+=this }
 case  class Delayed[L<:Locus, R<:Ring](_arg:() => AST[L,R],override val c:Circuit, override val nbit:Int)(implicit m : repr[L]) extends AST[L,R]( c, nbit)  with Singleton
  {c.addDelayed(this);lazy val arg={ _arg().user+=this;_arg() } }
-
-   
 }
 
 
-sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (implicit m : repr[L]) extends Named with Bag { 
+/** A node of the abstract syntax tree
+ *  @tparam L: the locus in V,E or F
+ *  @tparam R: the  type 
+ *  @constructor  
+ *  @param c: a node is allways associated to a circuit
+ *  @param nbit the number of bits that will be computed
+ *  @implicit param m: used to compute the type L
+ */
+sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (implicit m : repr[L]) extends Named with Dag { 
   /** not necessary, just to remember how to retrieve the name*/
   val locus:String = m.name 
  /**  records user of this AST so as to detect when  it is used more than once, and e should be stored. */

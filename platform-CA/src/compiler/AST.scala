@@ -1,203 +1,50 @@
 package compiler
+  trait EmptyBag[T <: Dag[T]] extends MutableDag[T] { def neighbor2: List[T] = List.empty; def substituteInArg = {} }
+  trait Singleton[T <: Dag[T]] extends MutableDag[T] {def setArg(a: T); def arg: T; def substituteInArg = { setArg(neighbor.head) };  def neighbor2: List[T] = List(arg)  } 
+  trait Doubleton[T <: Dag[T]] extends MutableDag[T] {    def setArg(a: T); def arg: T; def setArg2(a: T); def arg2: T;    def substituteInArg = { setArg(neighbor.head); setArg2(neighbor.tail.head) }; def neighbor2: List[T] = List(arg, arg2)  }
+  trait Tripleton[T <: Dag[T]] extends MutableDag[T] {    def setArg(a: T); def arg: T; def setArg2(a: T); def arg2: T;def setArg3(a: T); def arg3: T;    def substituteInArg = { setArg(neighbor.head); 
+  setArg2(neighbor.tail.head); setArg3(neighbor.tail.tail.head) }; def neighbor2: List[T] = List(arg, arg2,arg3)  }
+  trait Neton[T <: Dag[T]] extends MutableDag[T] { def args: Seq[T]; def neighbor2: List[T] = args.toList;def setArgs(a: Seq[T]); def substituteInArg = {setArgs(neighbor)} }
+  trait Singleton1[T <: Dag[T]] extends MutableDag[T] {   def exp: T; def substituteInArg = { };  def neighbor2: List[T] = List(exp)  } 
+  trait Doubleton1[T <: Dag[T]] extends MutableDag[T] {   def exp: T;   def exp2: T;    def substituteInArg = {}; def neighbor2: List[T] = List(exp,exp2)  }
+  trait Neton1[T <: Dag[T]] extends MutableDag[T] { def exps: Seq[T]; def neighbor2: List[T] = exps.toList;  def substituteInArg = { } }
 
-import junit.framework.Assert.assertEquals
-import ASTB._
-import scala.collection.mutable.ListBuffer
-import scala.language.higherKinds
-
-
-/**The 9 locus. Three simplicial locus: V for vertex, E for edge, F for face, */
-sealed abstract  class Locus
-class S extends Locus;  final class V extends S;  final class E extends S ;  final class F  extends S
-/** T stands for Transfer, and uses two simplicial locus. The first is the simplicial. T[V,E] corresponds to  eV  */
-final class T[S1<:S,S2<:S] extends Locus 
-
-
-/**used to compute a string encoding the locus, at compile time. */
-class repr[L <: Locus](val name: String)
-object repr { implicit val nomV = new repr[V]( "V");
-implicit val nomE = new repr[E]( "E");implicit val nomF = new repr[F]( "F"); 
-implicit val nomTVE = new repr[T[V,E]]( "vE"); implicit val nomTVF = new repr[T[V,F]]( "vF");
-implicit val nomTEV = new repr[T[E,V]]( "eV");implicit val nomTEF = new repr[T[E,F]]( "eF");
-implicit val nomTFV = new repr[T[F,V]]( "fV");implicit val nomTFE = new repr[T[F,E]]( "fE");
-/*  implicit def nomT[L1<:S,L2<:S](implicit m1 : repr[L1], m2 : repr[L2]) = //compiler call it because it cannot find implicit variable
-    new repr[T[L1,L2]]( m1.name.toLowerCase + m2.name);                 //with type T[X][Y] so it look for implicit fonction returning some. */ 
- }
-
-class CentralSym[S1,S2,S3]
-object CentralSym{
-	implicit val vEv= new CentralSym[V,E,V];	implicit val fEf= new CentralSym[F,E,F];
-	implicit val vFe= new CentralSym[V,F,E];	implicit val eFv= new CentralSym[E,F,V];
-}
-class Red2[S1,S2,S3]
-object Red2{
-	implicit val VEF= new Red2[V,E,F];	 
+abstract  class AST[+T]()(implicit m: repr[T]) extends MutableDag[AST[_]] with Named {
+  val mym:repr[_] = m //type of mym is set to repr[_] to allow covariance. 
+  def locus=m.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._1  //we need to get locus and ring for read node. 
+ def ring=m.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._2
+  def checkName() = { if (name == null) name = "_aux" +  AST.getCompteur; }
 }
 
-
-object AST {   
- def displayableIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.displayable(f)
- def displayIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,_<:Ring]) = l.display(f)
- def bugIfIn(l:Layer[_<:Locus,_<:Ring] ,f:AST[_<:Locus,B]) = l.bugIf(f)
- //def layer[L<:Locus,R<:Ring](c:Circuit,nbit:Int )(implicit m : repr[L])=  LayerAST(c,nbit)
-//def setPred[L<:Locus,R<:Ring](l:LayerAST[L,R],f:AST[L,R]){l.setPred(f)}
-// def setNext[L<:Locus,R<:Ring](l:LayerAST[L,R],f:AST[L,R]){l.setNext(f)}
-   def const[L<:Locus,R<:Ring](c:Circuit ,cte:ASTB[R])(implicit m : repr[L])     = Const(c,cte)(m) ;
- // def layer[L<:Locus,R<:Ring]( c:Circuit )(implicit m : repr[L])   =  Layer (c)(m)
- def transfer[S1<:S,S2<:S,R<:Ring](arg : AST[T[S1,S2],R])(implicit m : repr[T[S2,S1]]) = Transfer(arg)(m)  ;
- def sym[S1<:S,S2<:S,S3<:S, R<:Ring](arg : AST[T[S2,S1],R])(implicit m : repr[T[S2,S3]], t : CentralSym[S1,S2,S3]) = Sym(arg)(m,t)   ;
- def v[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,V]],  m2 : repr[T[V,S1]])=Broadcast[S1,V,R](arg); // for broadcast, we want to specify only the direction where broadcasting takes place.
-	def e[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,E]],  m2 : repr[T[E,S1]])=Broadcast[S1,E,R](arg); // this is done using three function e,v,f. 
-	def f[S1<:S, R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,F]],  m2 : repr[T[F,S1]])=Broadcast[S1,F,R](arg);
-	//def castB2R[L<:Locus,R<:I]( arg: AST[L,B] )(implicit m : repr[L])  = Unop[L,B,R] (castB2RN[R],arg );
-	def neg[L<:Locus, R<:Ring] ( arg : AST[L,R]) (implicit m : repr[L]) = Unop[L,R,R](negN[R],arg)   ;
-	def opp[L<:Locus ] ( arg : AST[L,SI]) (implicit m : repr[L]) = Unop[L,SI,SI](oppN,arg)   ;
-	def elem[L<:Locus, R<:I]   (i:Int , arg : AST[L,R]  ) (implicit m : repr[L]) = Unop[L,R,B](eltN[R](i),arg)   ;
-	def extend[L<:Locus, R<:I]   (i:Int , arg : AST[L,R]  ) (implicit m : repr[L]) = Unop[L,R,R](extendN[R](i),arg)   ;
-	def sign[L<:Locus] ( arg1 : AST[L,SI] )(implicit m : repr[L]) = Unop[L,SI,SI ](signN,arg1 );
-	def halve[L<:Locus, R<:I] ( arg1 : AST[L,R] )(implicit m : repr[L])  = Unop[L,R,R ](halveN,arg1 )
-  def orScanRight[L<:Locus, R<:I] ( arg1 : AST[L,R] )(implicit m : repr[L])    = Unop[L,R,R ](orScanRightN,arg1 )
-  def gt[L<:Locus] ( arg1 : AST[L,SI] )(implicit m : repr[L]) = Unop[L,SI,B ](gtN,arg1 );
-	//def binop [L<:Locus, R<:Ring] (implicit m : repr[L]) = Binop[L,R,R,R] _  ;
-	def orL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L]) = Binop[L,R,R,R](orN,arg1,arg2 );
-	def andL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R]) (implicit m : repr[L]) = Binop[L,R,R,R](andN,arg1,arg2 );
-	def xorL[L<:Locus, R<:Ring]( arg1 : AST[L,R] , arg2 : AST[L,R]) (implicit m : repr[L]) = Binop[L,R,R,R](xorN,arg1,arg2 );
-	/** We avoid casting boolean to integer, instead we define operation taking an int and a  bool, and computing a new int, by mapping the and operation*/
-	def andLB2R [L<:Locus,R<:I]( arg1 : AST[L,B],arg2 : AST[L,R])(implicit m : repr[L]) = Binop[L,B,R,R]( andLB2RN,arg1 ,arg2);
-  def concat[L<:Locus,R<:I]( arg1 : Seq[AST[L,B]])(implicit m : repr[L])=  Multop[L,B,R](concatN, arg1 );
-	def addL[L<:Locus,R<:I] ( arg1 : AST[L,R], arg2 : AST[L,R])(implicit m : repr[L]):AST[L,R] = Binop[L,R,R,R](addN,arg1,arg2 ) ;
-	def orR[S1<:S,S2<:S, R<:Ring] (arg : AST[T[S1,S2],R])(implicit m : repr[S1]) = Redop[S1,S2,R] ((orN[R],False[R](arg.nbit)),arg );   
-	def xorR[S1<:S,S2<:S, R<:Ring] (arg : AST[T[S1,S2],R])(implicit m : repr[S1]) = Redop[S1,S2,R] ((xorN[R],False[R](arg.nbit)),arg );   
-  def xorR2[S1<:S,S2<:S,S2new<:S, R<:Ring] (arg : AST[T[S1,S2],R])(implicit m : repr[T[S1,S2new]]) = Redop2[S1,S2,S2new,R] ((xorN[R],False[R](arg.nbit)),arg );   
-	def minR[S1<:S,S2<:S,R<:I] (arg : AST[T[S1,S2],R])(implicit m : repr[S1]) = Redop[S1,S2,R] ((minN[R],ConstInt[R](0,1)),arg );
-	/** Delete uses a trick found on the net, to have a call by name, together with a case class necessary to make the match*/
-	def delayed[L<:Locus,R<:Ring](_arg: => AST[L,R],c:Circuit,nbit:Int )(implicit m : repr[L]): AST[L,R] = {
-  lazy val delayed = _arg  ;  Delayed(() => delayed,c,nbit) }
-  
-  
-  type IntV = AST[V,SI]; type IntE = AST[E,SI]; type IntF = AST[F,SI];
-	type IntvE = AST[T[E,V],SI]; type InteV = AST[T[V,E],SI];
-	type IntvF = AST[T[F,V],SI]; type IntfV = AST[T[V,F],SI];
-	type IntfE = AST[T[E,F],SI]; type InteF = AST[T[F,E],SI];
-  type UintV = AST[V,UI]; type UintE = AST[E,UI]; type UintF = AST[F,UI];
-	type UintvE = AST[T[E,V],UI]; type UinteV = AST[T[V,E],UI];
-	type UintvF = AST[T[F,V],UI]; type UintfV = AST[T[V,F],UI];
-	type UintfE = AST[T[E,F],UI]; type UinteF = AST[T[F,E],UI];  
-	type BoolV = AST[V,B]; type BoolE = AST[E,B]; type BoolF = AST[F,B];
-	type BooleV = AST[T[V,E],B]; type BoolvE = AST[T[E,V],B];
-	type BoolvF = AST[T[F,V],B]; type BoolfV = AST[T[V,F],B];
-	type BoolfE = AST[T[E,F],B]; type BooleF = AST[T[F,E],B];
-  def cond[L<:Locus,R<:I] (b:AST[L,B],  arg1 : AST[L,R] , arg2 : AST[L,R])(implicit m : repr[L])= orL(andLB2R[L,R](b,arg1),andLB2R(neg(b),arg2))
-  	/**  defined only for signed Int */
-  def minusL[L<:Locus] ( arg1 :  AST[L,SI], arg2 : AST[L,SI])(implicit m : repr[L]) = addL( arg1,opp(arg2)) ;
-  
-  def mstb[L<:Locus,R<:I] (arg1:AST[L,R])(implicit m : repr[L]): AST[L,R] = { val y:AST[L,R]= orScanRight[L,R](arg1); 
-    xorL(y,halve(y)) }  
-	
-	
-def toStringNode( a:AST[_,_]):String =  
- ( a   match {
-	case Layer(_,_) =>  "Layer"+a.locus + " "
-	case Const(_,cte) =>cte.toString+a.locus	
-	case Binop(op,arg1,arg2)=>  op.toString    
-  case Multop(op,args)=>  op.toString  
-	case Unop(op, arg)=>  op.toString  
-	case Redop(op, arg)=> "red"+op.toString  
-	case Redop2(op, arg)=> "red2"+op.toString  
- 	case Broadcast(arg) =>  "Broadcast"+arg.locus 
-	case Transfer(arg) =>  "receive " 
-	case Sym(arg) =>  "sym " 
-	case Delayed(arg,c,nbit) => "delayed "  
-	}) 
-	//+ "_"+ (if(a.name==null) "null" else a.name)
-   
-  
-  def toStringTree(firstCall:Boolean,a:AST[_,_]):String =
-   if(!firstCall & a.affected ) a.name
-	 else 	a   match {
-	case Layer(_,_) =>  "Layer"+a.locus + " "
-	case Const(_,cte) =>cte.toString+a.locus	
-	case Binop(op,arg1,arg2)=>  op.toString+ "("+  toStringTree(false,arg1)+ ","+toStringTree(false,arg2)+")"
-  case Multop(op,args)=>  op.toString + "(" + " "+  ("" /: args) (_ +" "+ toStringTree(false,_))  + ")"
-	case Unop(op, arg)=>  op.toString +" "+  toStringTree(false,arg)
-	case Redop(op, arg)=> "red"+op.toString +" "+ toStringTree(false,arg)
-	case Redop2(op, arg)=> "red2"+op.toString +" "+ toStringTree(false,arg)
- 	case Broadcast(arg) =>  "Broadcast"+arg.locus+" "+ toStringTree(false,arg) 
-	case Transfer(arg) =>  "transfer "  +  toStringTree(false,arg) 
-	case Sym(arg) =>  "sym"+ toStringTree(false,arg)
-	case Delayed(arg,c,nbit) => "delayed " +  toStringTree(false,arg())
-	}
-
-//we introduce subtrait of bags to automatize the computation of the elements which can be zero, one, two or severals. 
-trait EmptyBag extends Dag{  def neighbor:List[Dag]=List.empty}
-trait Singleton extends Dag{ val arg:Dag; def neighbor:List[Dag]=List(arg)}
-trait Doubleton extends Dag{ val arg:Dag;val arg2:Dag; def neighbor:List[Dag]=List(arg,arg2)}
-trait Neton extends Dag{ val args:Seq[Dag] ; def neighbor:List[Dag]=args.toList}
-
-
-
-/**stores a list of  ensure boolV and display in order to get name related to the layers.  */
- abstract case class Layer[L<:Locus, R<:Ring](override val  c:Circuit,override val nbit:Int )(implicit m : repr[L]) extends AST[L,R](c,nbit) with EmptyBag{
-   /** the value at t, which  is represented as  the layer itself.*/
-   val pred:AST[L,R]=this;  
-  /**value of the layer at t+1, it is abstract, since before computing the next value, we need probably to create other layers.  */
- val next:AST[L,R];
-   // def setNext(l:AST[L,R]){next=l};
-  
-//for the following three lists, we must put ORs to make sure user is updated correctly.? 
-  /** Boolean fields which must be true, otherwise bug is detected in layer.*/ 
- 	 var bugIf: List[AST[_<:Locus,B]] =List() ;def bugIf(a:AST[_<:Locus,B]){bugIf=a::bugIf}
-	  /**  fields   representing the layer on screen */
-	 var display: List[AST[_<:Locus,_<:Ring]] =List();def display(a:AST[_<:Locus,_<:Ring]){display=a::display}
-	 /**  fields which could be displayed for undertanding a bug */
-	 var displayable: List[AST[_<:Locus,_<:Ring]] =List();def displayable(a:AST[_<:Locus,_<:Ring]){displayable=a::displayable}
-	 /** computes affectation for debug, displayed, displayable variables
-	  *  The elements of the right operand will "overwrite" the elements of the left one, because ensure > displayed > displayable */
-	 def affect=   displayable.map (e=>(e,new Displayable(e))) :::   display.map (e=>(e,new Display(e))) :::    bugIf.map (e=>(e,new Ensure(e))) 
-}
-case class Const[L<:Locus,R<:Ring](override val  c:Circuit ,cte:ASTB[R])(implicit m : repr[L]) extends AST[L,R](c,cte.nbit) with EmptyBag
-case class Binop[L<:Locus, R1<:Ring, R2<:Ring, R3<:Ring] (op:(ASTB[R1],ASTB[R2] )=>ASTB[R3], arg : AST[L,R1], arg2 : AST[L,R2])(implicit m : repr[L]) 
-   extends AST[L,R3](arg.c, nbit[R1,R2,R3](arg.nbit, arg2.nbit, op)) with Doubleton
- {arg.user+=this;arg2.user+=this;assertEquals(arg.c, arg2.c) }
-case class Broadcast[S1<:S,S2<:S,R<:Ring](arg : AST[S1,R])(implicit m : repr[T[S1,S2]],m2 : repr[T[S2,S1]]) extends AST[T[S1,S2],R](arg.c,arg.nbit) with Singleton
- {arg.user+=this  }
-case class Transfer[S1<:S,S2<:S,R<:Ring](arg : AST[T[S1,S2],R])(implicit m : repr[T[S2,S1]]) extends AST[T[S2,S1],R](arg.c,arg.nbit) with Singleton
- {arg.user+=this } 
-case class Unop[L<:Locus, R1<:Ring, R2<:Ring] (op:ASTB[R1]=>ASTB[R2], arg : AST[L,R1])(implicit m : repr[L]) extends AST[L,R2](arg.c, nbit[R1,R2](arg.nbit,  op)) with Singleton
- {arg.user+=this }
-case class Multop[L<:Locus, R1<:Ring, R2<:Ring] (op:Seq[ASTB[R1]]=>ASTB[R2], args : Seq[AST[L,R1]])
-  (implicit m : repr[L]) extends AST[L,R2](args(0).c,  nbit[R1,R2](args.toList.map (x=>x.nbit), op)) with Neton
- { for (arg <- args) arg.user+=this}
-case class Redop[S1<:S,S2<:S,R<:Ring](op: redop[ASTB[R]],arg : AST[T[S1,S2],R])(implicit m : repr[S1]) extends AST[S1,R](arg.c, arg.nbit) with Singleton
- {arg.user+=this }
-case class Redop2[S1<:S,S2<:S,S2new<:S,R<:Ring](op: redop[ASTB[R]],arg : AST[T[S1,S2],R])(implicit m : repr[T[S1,S2new]]) extends AST[T[S1,S2new],R](arg.c, arg.nbit) with Singleton
- {arg.user+=this }
-case class Sym[S1<:S,S2<:S,S3<:S, R<:Ring](arg : AST[T[S2,S1],R])(implicit m : repr[T[S2,S3]], t : CentralSym[S1,S2,S3]) extends AST[T[S2,S3],R](arg.c,arg.nbit)  with Singleton
- {arg.user+=this }
-case  class Delayed[L<:Locus, R<:Ring](_arg:() => AST[L,R],override val c:Circuit, override val nbit:Int)(implicit m : repr[L]) extends AST[L,R]( c, nbit)  with Singleton
- {c.addDelayed(this);lazy val arg={ _arg().user+=this;_arg() } }
-}
-
-
-/** A node of the abstract syntax tree
- *  @tparam L: the locus in V,E or F
- *  @tparam R: the  type 
- *  @constructor  
- *  @param c: a node is allways associated to a circuit
- *  @param nbit the number of bits that will be computed
- *  @implicit param m: used to compute the type L
- */
-sealed abstract class AST[+L<:Locus,+R<:Ring]( val c :Circuit, val nbit:Int) (implicit m : repr[L]) extends Named with Dag { 
-  /** not necessary, just to remember how to retrieve the name*/
-  val locus:String = m.name 
- /**  records user of this AST so as to detect when  it is used more than once, and e should be stored. */
-  var user= new ListBuffer[AST[_,_]]() //  Careful Expression can be stored also if displayed, displayable, ensured-condition, live 
- /**Circuit to which belong the node, initialized on leaf, and then transmitted */
-  c.addNode(this)
-  /**true if expression is stored in a variable */
-  def affected:Boolean=c.affect.contains(this)
-  def shown()=if(affected) c.affect(this).shown else false
-  def hidden()=if(affected) c.affect(this).hidden else false
- 	override def toString:String=AST.toStringNode( this)
+//la fonction read2 montre qu'on peut generer des constructeur Read qui implémente AST2, bingo. donc les operateur AST2 auront des arg AST2, et des OP AST.
+object AST{
+ //  implicit def toAST2I[L<:Locus,R<:I](a:AST[Tuple2[L,R]]):AST2I[L,R]=this.asInstanceOf[AST2I[L,R]]
+private var nameCompteur = 0;
+def getCompteur: Int = { nameCompteur += 1; nameCompteur }
+class Fundef[T](val name:String, val body:T , val p :Param[_]*) 
+case class Fundef1[Ti1, To1   ](override val name:String,override val body:AST[To1],   val p1:Param[Ti1]) extends Fundef[AST[To1]](name,body,p1){override def toString = name}
+case class Fundef2[Ti1, Ti2 , To1   ](override val name:String,override val body:AST[To1],   val p1:Param[Ti1], val p2:Param[Ti2]) extends Fundef[AST[To1]](name,body,p1,p2){override def toString = name}
+case class Fundef3[Ti1, Ti2, Ti3 , To1   ](override val name:String,override val body:AST[To1],   val p1:Param[Ti1], val p2:Param[Ti2], val p3:Param[Ti3]) extends Fundef[AST[To1]](name,body,p1,p2,p3){override def toString = name}
+//on peut pas utiliser fundefn, car faudrait savoir a l'avance le nombre de paramétres, pour maj l'environnement. 
+case class Fundefn[Ti1, To1   ](override val name:String,override val body:AST[To1],   val pn:Param[Ti1]*,
+     ) extends Fundef[AST[To1]](name,body,pn: _*){override def toString = name}
+case class Param[T](val s:String)(implicit n: repr[T]) extends AST[T] with EmptyBag[AST[_]]
+case class Call1[Ti1, To1 ](val f:Fundef1[Ti1,To1],var arg:AST[Ti1])(implicit n: repr[To1]) extends AST[To1]with Singleton[AST[_]]
+    { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]];  }
+case class Call2[Ti1 , Ti2<:Ring, To1<:Ring  ](val f:Fundef2[Ti1 ,Ti2, To1 ],var arg:AST[Ti1],var arg2:  AST[Ti2])(implicit n: repr[To1]) extends AST[To1] with Doubleton[AST[_]]
+  { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]]; def setArg2(a: AST[_]) = arg2 = a.asInstanceOf[AST[Ti2]] }
+case class Call3[Ti1 , Ti2<:Ring, Ti3<:Ring, To1<:Ring  ](val f:Fundef3[Ti1 ,Ti2,Ti3, To1 ],var arg:AST[Ti1],var arg2:  AST[Ti2],var arg3:  AST[Ti3])(implicit n: repr[To1]) extends AST[To1] with Tripleton[AST[_]]
+  { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]]; def setArg2(a: AST[_]) = arg2 = a.asInstanceOf[AST[Ti2]]; def setArg3(a: AST[_]) = arg3 = a.asInstanceOf[AST[Ti3]] }
+case class Read[T](which: String)(implicit m: repr[T]) extends AST[T]() with EmptyBag[AST[_]] 
+case class Delayed[T](_arg: () => AST[T])(implicit m: repr[T]) extends AST[T]() with Singleton[AST[_]] {
+    lazy val arg = { /* _arg().user+=this;*/ _arg() }
+    def setArg(a: AST[_]) = { // throw new RuntimeException("cannot substitute in a delayed")
 } 
+  }
  
+  //on se sert de DELAYED que dans ASTL, donc on va directement l'y mettre. 
+  //def delayed3[L<:Locus,R<:Ring](_arg: => AST[Tuple2[L,R]])(implicit m: repr[Tuple2[L,R]])   = { lazy val delayed4 = _arg with AST2[L,R];new Delayed(() => delayed4) }
+ 
+
+} 
+  

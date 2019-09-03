@@ -1,3 +1,48 @@
+//copie d'une ancienne version de dedag qui pourrait etre utile pour consultation. 
+  /*def deDag2[U](nUser: HashMap[AST[_], Int], repr: HashMap[AST[_], AST[_]], d: AST[U]): AST[U] = {
+    def deDag[U](d: AST[U]): AST[U] =
+      if (nUser.contains(d) && nUser(d) > 1)
+         Read[U](repr(d).name)(d.mym.asInstanceOf[repr[U]]) //faut chercher le nom dans la représentation.
+      else {
+        val newD = d match {
+          case Delayed(arg)         => deDag(arg())
+          case e: EmptyBag[_]       => e  
+    
+          case e @ Binop(op, a, a2) => e.copy(arg = deDag(a).asInstanceOf[ ASTg2bis], arg2 = deDag(a2).asInstanceOf[ ASTg2bis])(e.l  , e.r ) //TODO we can put all the other without test of instanceof
+          case e @ Binop2(o , a, a2) => e.copy(arg = deDag(a).asInstanceOf[ ASTg2bis], arg2 = deDag(a2).asInstanceOf[ ASTg2bis] )(e.l.asInstanceOf[repr[Locus]], e.r.asInstanceOf[repr[Ring]]) //Binop(op, deDag(arg), deDag(arg2))(d.l, d.r)
+          case e @ Multop(op, a)    => e.copy(args = a.map(arg => deDag(arg)).asInstanceOf[Seq[ASTg2bis]])(e.l.asInstanceOf[repr[Locus]], e.r.asInstanceOf[repr[Ring]])
+         case e @ Unop2(op, a)      => e.copy(arg = deDag(a).asInstanceOf[ ASTg2bis])(e.l.asInstanceOf[repr[Locus]], e.r.asInstanceOf[repr[Ring]]) //      => Unop(op, deDag(arg))(d.l, d.r)
+           case e @ Unop(op, a)      => e.copy(arg = deDag(a).asInstanceOf[ ASTg2bis])(e.l.asInstanceOf[repr[Locus]], e.r.asInstanceOf[repr[Ring]]) //      => Unop(op, deDag(arg))(d.l, d.r)
+          case e @ Unop2(op, a)      => e.copy(arg = deDag(a).asInstanceOf[ ASTg2bis])(e.l.asInstanceOf[repr[Locus]], e.r.asInstanceOf[repr[Ring]]) //      => Unop(op, deDag(arg))(d.l, d.r)
+          case e @ Redop(op, a)     => e.copy(arg = deDag(a).asInstanceOf[ AST2[T[S,S],Ring]])(e.l.asInstanceOf[repr[S]], e.r.asInstanceOf[repr[Ring]]) //case Redop(op, arg)       => deDagRed(d.asInstanceOf[redAST]).asInstanceOf[AST2[L, R]]
+           case e @ Redop2(op, a)     => e.copy(arg = deDag(a).asInstanceOf[AST2[T[S,S],Ring]])(e.l.asInstanceOf[repr[T[S,S]]], e.r.asInstanceOf[repr[Ring]]) //case Redop(op, arg)       => deDagRed(d.asInstanceOf[redAST]).asInstanceOf[AST2[L, R]]
+          case e @ Broadcast(a)     => e.copy(arg = deDag(a).asInstanceOf[ AST2[S,Ring]])(e.l.asInstanceOf[repr[T[S,S]]], e.r.asInstanceOf[repr[Ring]]) // case Broadcast(arg)       => deDagBroadcast(d.asInstanceOf[broadcastAST]).asInstanceOf[ASTL[L, R]]
+          case e @ Transfer(a)      => e.copy(arg = deDag(a).asInstanceOf[ AST2[T[S,S],Ring]])(e.l.asInstanceOf[repr[T[S,S]]], e.r.asInstanceOf[repr[Ring]]) //deDagTransfer(d.asInstanceOf[transferAST]).asInstanceOf[ASTL[L, R]]
+          // ToDo case Sym(arg) =>  Sym(deDag(arg))(d.m2)
+
+        }
+        newD.setName(d.name)
+        newD.asInstanceOf[AST[U]]
+      }
+    return deDag(d)
+  }
+   */
+  
+  
+  
+
+
+type redAST = Redop[_ <: S, _ <: S, _ <: Ring]
+  type red2AST = Redop2[_ <: S, _ <: S, _ <: S, _ <: Ring]
+  type broadcastAST = Broadcast[_ <: S, _ <: S, _ <: Ring]
+  type transferAST = Transfer[_ <: S, _ <: S, _ <: Ring]
+
+  
+/*  def deDagRed2[S1 <: S, S2 <: S, S2new <: S, R <: Ring](a: Redop2[S1, S2, S2new, R]) = redOp2(deDag(a.arg), a.op, a.l, a.r);
+    def deDagBroadcast[S1 <: S, S2 <: S, R <: Ring](a: Broadcast[S1, S2, R]) = broadcast(deDag(a.arg), a.l, a.r);
+    def deDagTransfer[S1 <: S, S2 <: S, R <: Ring](a: Transfer[S1, S2, R]) = transfer(deDag(a.arg))(a.l, a.r);*/
+
+
 
 MEMOIZING FUNCTIONS
 https://medium.com/musings-on-functional-programming/scala-optimizing-expensive-functions-with-memoization-c05b781ae826

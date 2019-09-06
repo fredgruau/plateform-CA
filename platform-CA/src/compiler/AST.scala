@@ -9,10 +9,17 @@ package compiler
   trait Doubleton1[T <: Dag[T]] extends MutableDag[T] {   def exp: T;   def exp2: T;    def substituteInArg = {}; def neighbor2: List[T] = List(exp,exp2)  }
   trait Neton1[T <: Dag[T]] extends MutableDag[T] { def exps: Seq[T]; def neighbor2: List[T] = exps.toList;  def substituteInArg = { } }
 
+  /**Represent an Asbstract Syntax Tree using Function definition, and calls, reading of variables, delaying of evaluation. 
+   *Reused to implement the AST of integer function and the AST of spatial functions.
+   *The parameter type T is the type of the associated expression
+   *covariant because 
+   *@m implicit parameter used to compute this type.
+   */
+  
 abstract  class AST[+T]()(implicit m: repr[T]) extends MutableDag[AST[_]] with Named {
-  val mym:repr[_] = m //type of mym is set to repr[_] to allow covariance. 
-  def locus=m.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._1  //we need to get locus and ring for read node. 
- def ring=m.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._2
+  val mym:repr[_]  = m //type of mym is set to repr[_] to allow covariance. 
+  def locus=m.name.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._1  //we need to get locus and ring for read node. 
+  def ring ={ m.name.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._2 }
   def checkName() = { if (name == null) name = "_aux" +  AST.getCompteur; }
 }
 

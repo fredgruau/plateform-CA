@@ -8,7 +8,6 @@ import scala.collection.immutable.HashMap
 
 /**Test the correct implementation of integer operation, by evaluating them */
 class ASTBtest extends TestCase {
-
   /** Binary code, LSB at head */
   def toBinary(n: Int, size: Int): List[Boolean] =
     if (size == 0) List() else (if (n % 2 == 1) true else false) :: toBinary(n / 2, size - 1)
@@ -108,5 +107,9 @@ class ASTBtest extends TestCase {
   def testInc() {assert(toInt(eval(huit,env)) ==8)}
   val quatrebis= Call1(halveB,huit)
  def testHalve() {assert(toInt(eval(quatrebis,env)) ==4)}
-  
+   val unbis = ConstSignedInt(1, 7);
+    val testNbit=   HashMap.empty[AST[_], Int]
+   def testComputeNbit(){
+      val n=computeNbit(testNbit ,Call2(add, un, unbis) ) 
+      assert(n==7) }
 }

@@ -32,7 +32,7 @@ trait Circuit  extends   Named{
   *  The DAG stores AST[T], it it designed to work both for ASTL and ASTB, 
   *  this explains, why we must contantly cast back and forth between AST and ASTL 
   *  when calling getGreater from DAG.
-  */ 
+  */   
   def compile: Unit={ 
     ////////////STEP1 compute  the minimals of the AST DAG
   /**  compute AST nodes, sorted in  topological order (opposite to dependance), modulo an equivalence relation of having identical structure*/
@@ -51,7 +51,7 @@ trait Circuit  extends   Named{
   if (inspectNodes.size > 0) throw new RuntimeException("inspectnodes involved new computation")
   /**   Total list of AST Nodes that can be computed */
   val allASTNodes:List[ASTLg]  =  (renderNodes ::: bugIfNodes ::: computeNodes )  
-  
+   
   /**Nodes with identical structure cannot be distinguished, the represent hashtable is used to get the representative of each equivalence class */
   val represent: HashMap[ASTLg, ASTLg] = HashMap.empty[ASTLg, ASTLg] ++ allASTNodes.map(x => (x -> x))
  // for(n<-allASTNodes) n.fold(represent.asInstanceOf[HashMap[AST[_], AST[_]]] );
@@ -71,11 +71,11 @@ trait Circuit  extends   Named{
   if(affectMap.size<affect.size) throw new RuntimeException("a name is reused two times"  )
  
   //computing three kinds of instructions:
-  val memorize=nextRoot.map( e  =>   Memorize2(e.deDag3(nUser,represent  ))).asInstanceOf[List[Memorize2[ASTLg]]]   // :::nodes.toList.collect { case Transfer(e) => Send(e)}
+  val memorize= nextRoot.map( e  =>   Memorize2(e.deDag3(nUser,represent  ))).asInstanceOf[List[Memorize2[ASTLg]]]   // :::nodes.toList.collect { case Transfer(e) => Send(e)}
   val bugifInstr=  bugIfRoot.map( e  =>  Bugif(e.deDag3(nUser,represent ).asInstanceOf[ASTbool]) ).asInstanceOf[List[Bugif[ASTbool]]]  // :::nodes.toList.collect { case Transfer(e) => Send(e)}
   /**values that need not be computed when relaxing the circuit without looking at it*/
   val computeMinimals = ((computeRoot:::renderRoot). filter(e=> !nUser.contains(e) ).map (e  => ComputeMinimal(e.deDag3(nUser,represent)))).asInstanceOf[List[ComputeMinimal[ASTLg]]]
-  println("AST has " + computeNodes.size  + "compute Nodes")
+  println("AST has " + computeNodes.size  + "compute Nodeees")
   val allInstructions=bugifInstr:::computeMinimals:::memorize:::affect
   //println(usedMoreThanOnce)
   val nbit   = scala.collection.mutable.HashMap.empty[ASTLg, Int] 

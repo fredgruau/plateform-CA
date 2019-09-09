@@ -45,7 +45,7 @@ class ASTBtest extends TestCase {
   }*/
 
   private def eval(exp: AST[_], env: HashMap[Param[_], List[Boolean]]): List[Boolean] = exp match {
-    case Call1(op, x)                  => eval(op.body, env + (op.p1 -> eval(x, env)))
+    case Caall1(op, x)                  => eval(op.body, env + (op.p1 -> eval(x, env)))
     case Call2(op, x, y)               => eval(op.body, env + (op.p1 -> eval(x, env)) + (op.p2 -> eval(y, env)))
     case Call3(op, x, y, z)            => eval(op.body, env + (op.p1 -> eval(x, env)) + (op.p2 -> eval(y, env)) + (op.p3 -> eval(z, env)))
     case u @ Param(x)                  => env(u)
@@ -103,9 +103,9 @@ class ASTBtest extends TestCase {
   def testAdd1() { assert(toInt(eval(cinq, env)) == 5) }
   val six = Call2(add, trois, trois);
   def testAdd2() { assert(toInt(eval(six, env)) == 6) }
-  val huit= Call1(inc, sept)
+  val huit= Caall1(inc, sept)
   def testInc() {assert(toInt(eval(huit,env)) ==8)}
-  val quatrebis= Call1(halveB,huit)
+  val quatrebis= Caall1(halveB,huit)
  def testHalve() {assert(toInt(eval(quatrebis,env)) ==4)}
    val unbis = ConstSignedInt(1, 7);
     val testNbit=   HashMap.empty[AST[_], Int]

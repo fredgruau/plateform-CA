@@ -34,7 +34,7 @@ trait MyOp[L <: Locus, R <: Ring] {
 }
 
 /** Integer spatial operators*/
-trait MyOpInt[L <: Locus, R <: Ring] { this: ASTLtrait[L, R] =>
+trait MyOpInt2[L <: Locus, R <: Ring] { this: ASTLtrait[L, R] =>
   //we cannot directly check the type constraint R<:I, otherwise it clash with AST2, but we can impose that U<:I and U>:R,
   //and in fact, this implies that R<:I
   def +[U >: R <: I](that: ASTLtrait[L, U])(implicit m: repr[L], n: repr[U]): ASTL[L, U] = Binop(add.asInstanceOf[Fundef2[R, U, U]], this, that,m,n);

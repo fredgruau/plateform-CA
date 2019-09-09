@@ -15,12 +15,14 @@ package compiler
    *covariant because 
    *@m implicit parameter used to compute this type.
    */
-  
+     
 abstract  class AST[+T]()(implicit m: repr[T]) extends MutableDag[AST[_]] with Named {
   val mym:repr[_]  = m //type of mym is set to repr[_] to allow covariance. 
   def locus=m.name.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._1  //we need to get locus and ring for read node. 
   def ring ={ m.name.asInstanceOf[Tuple2[_ <: Locus, _ <: Ring]]._2 }
   def checkName() = { if (name == null) name = "_aux" +  AST.getCompteur; }
+  import AST._
+ 
 }
 
 //la fonction read2 montre qu'on peut generer des constructeur Read qui implémente AST2, bingo. donc les operateur AST2 auront des arg AST2, et des OP AST.
@@ -36,18 +38,19 @@ case class Fundef3[Ti1, Ti2, Ti3 , To1   ](override val name:String,override val
 case class Fundefn[Ti1, To1   ](override val name:String,override val body:AST[To1],   val pn:Param[Ti1]*,
      ) extends Fundef[AST[To1]](name,body,pn: _*){override def toString = name}
 case class Param[T](val s:String)(implicit n: repr[T]) extends AST[T] with EmptyBag[AST[_]]
-case class Call1[Ti1, To1 ](val f:Fundef1[Ti1,To1],var arg:AST[Ti1])(implicit n: repr[To1]) extends AST[To1]with Singleton[AST[_]]
+ 
+case class Caall1[Ti1, To1 ](val f:Fundef1[Ti1,To1],var arg:AST[Ti1])(implicit n: repr[To1]) extends AST[To1]with Singleton[AST[_]]
     { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]];  }
 case class Call2[Ti1 , Ti2<:Ring, To1<:Ring  ](val f:Fundef2[Ti1 ,Ti2, To1 ],var arg:AST[Ti1],var arg2:  AST[Ti2])(implicit n: repr[To1]) extends AST[To1] with Doubleton[AST[_]]
   { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]]; def setArg2(a: AST[_]) = arg2 = a.asInstanceOf[AST[Ti2]] }
 case class Call3[Ti1 , Ti2<:Ring, Ti3<:Ring, To1<:Ring  ](val f:Fundef3[Ti1 ,Ti2,Ti3, To1 ],var arg:AST[Ti1],var arg2:  AST[Ti2],var arg3:  AST[Ti3])(implicit n: repr[To1]) extends AST[To1] with Tripleton[AST[_]]
   { def setArg(a: AST[_]) = arg = a.asInstanceOf[AST[Ti1]]; def setArg2(a: AST[_]) = arg2 = a.asInstanceOf[AST[Ti2]]; def setArg3(a: AST[_]) = arg3 = a.asInstanceOf[AST[Ti3]] }
-case class Read[T](which: String)(implicit m: repr[T]) extends AST[T]() with EmptyBag[AST[_]] 
+case class Reead[T](which: String)(implicit m: repr[T]) extends AST[T]() with EmptyBag[AST[_]] 
 case class Delayed[T](_arg: () => AST[T])(implicit m: repr[T]) extends AST[T]() with Singleton[AST[_]] {
     lazy val arg = { /* _arg().user+=this;*/ _arg() }
     def setArg(a: AST[_]) = { // throw new RuntimeException("cannot substitute in a delayed")
 } 
-  }
+  } 
  
   //on se sert de DELAYED que dans ASTL, donc on va directement l'y mettre. 
   //def delayed3[L<:Locus,R<:Ring](_arg: => AST[Tuple2[L,R]])(implicit m: repr[Tuple2[L,R]])   = { lazy val delayed4 = _arg with AST2[L,R];new Delayed(() => delayed4) }

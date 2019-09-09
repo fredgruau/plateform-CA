@@ -8,7 +8,7 @@ import scala.collection.immutable.HashMap
 import ASTL._
 import AST._
 /**The 9 locus. Three simplicial locus: V for vertex, E for edge, F for face, */
-sealed abstract class Locus
+sealed abstract class Locus 
 class S extends Locus; final case class V() extends S; final case class E() extends S; final case class F() extends S
 /** T stands for Transfer, and uses two simplicial locus. The first is the simplicial. T[V,E] corresponds to  eV  */
 final case class T[+S1 <: S, +S2 <: S](from: S1, to: S2) extends Locus
@@ -21,17 +21,18 @@ final case class T[+S1 <: S, +S2 <: S](from: S1, to: S2) extends Locus
  * ASTLtrait = AST + ASTL, therefore we should process them separately with a preliminary match, at the level of ASTLtrait.
  * ASTL's constructor uses ASTLtrait for children in order to incorporate AST's nodes.
  *
- */
+ */  
 
-trait ASTLtrait[L <: Locus, R <: Ring] extends AST[Tuple2[L, R]] with MyOp[L, R] with MyOpInt[L, R] {
+
+trait ASTLtrait[L <: Locus, R <: Ring] extends AST[Tuple2[L, R]] with MyOp[L, R] with MyOpInt2[L, R] {
   /**Important to specify that the L,R type of AST nodes is preserved, for type checking consistency */
    /**Surprisingly, when building ASTL explicitely, we need to drop the fact that the type is preserved, and go from ASTL[L,R] to ASTLg   
    * Transform a Dag of AST into a forest of trees, removes the delayed.
     * @nUser the number of other expression using this expression
    * @return the Dag where expression used more than once are replaced by read.
-   */
+   */ 
   def deDag3(nUser: HashMap[ASTLg, Int], repr: HashMap[ASTLg, ASTLg]): ASTLtrait[L, R] = {
-    if (nUser.contains(this) && nUser(this) > 1) new Read[Tuple2[L, R]](repr(this).name)(mym.asInstanceOf[repr[Tuple2[L, R]]]) with ASTLtrait[L, R]
+    if (nUser.contains(this) && nUser(this) > 1) return new Reead[Tuple2[L, R]](repr(this).name)(mym.asInstanceOf[repr[Tuple2[L, R]]]) with ASTLtrait[L, R]
     val newD=this match {
       //traiter les call, def, delayed.
       case a: ASTL[L, R] => a.propagate3(d=>d.deDag3(nUser,repr))
@@ -39,26 +40,21 @@ trait ASTLtrait[L <: Locus, R <: Ring] extends AST[Tuple2[L, R]] with MyOp[L, R]
         b.asInstanceOf[AST[_]] match {
           case Delayed(arg) => arg().asInstanceOf[ASTLtrait[L, R]].deDag3(nUser, repr) //the useless delayed node is supressed
         }
-      }
+      } 
     };newD.setName(this.name);newD
   }
   
-  
-  
-  override def toString: String = {
-    this.asInstanceOf[ASTL[_, _]] match {
-      case Layer(_)              => "Layer" + locus.toString.charAt(0) + "-" + ring.toString.charAt(0)
-      case Const(cte,_,_)            => "Const" + cte.toString + locus.toString.charAt(0) + "_" + ring.toString.substring(0, ring.toString.length() - 2);
-      case Binop(op, arg1, arg2,_,_) => op.toString
-      case Multop(op, args,_,_)      => op.toString
-      case Unop(op, arg,_,_)          => op.toString
-      case Redop(op, arg,_,_)        => "red" + op.toString
-      case Redop2(op, arg,_,_)       => "red2" + op.toString
-      case e @ Broadcast(arg,_,_)    => "Broadcast" + ("" + (e.locus.asInstanceOf[T[_, _]] match { case T(x, y) => y })).charAt(0)
-      case Transfer(arg,_,_)         => "Transfer"
-      case Sym(arg,_,_,_)              => "sym "
-    } }
-
+  override def toString: String = 
+    this match {
+      //traiter les call, def, delayed.
+      case b: ASTL[L, R] => b. toString() 
+      case d: AST[_]   =>
+        d.asInstanceOf[AST[_]] match {
+          case Reead(s)=>"Read"+s                       
+          case  f:Fundef[_] => f.name
+        }
+      }
+   
 
   /** inserting extend is not good, since it will change everything. Instead, we compute extend as a map, it maps exrpression that needs to be extended, 
    *  to the number of bits they need to be extended;
@@ -78,6 +74,22 @@ sealed abstract class ASTL[ L <: Locus,  R <: Ring]()(implicit m: repr[Tuple2[L,
   //override val (locus, ring) = m.name
   // private[this] val l: repr[L] = new repr(locus)
   // private[this] val r: repr[R] = new repr(ring)
+  
+   
+  override def toString: String = {
+    this.asInstanceOf[ASTL[_, _]] match {
+      case Layer(_)              => "Layer" + locus.toString.charAt(0) + "-" + ring.toString.charAt(0)
+      case Const(cte,_,_)            => "Const" + cte.toString + locus.toString.charAt(0) + "_" + ring.toString.substring(0, ring.toString.length() - 2);
+      case Binop(op, arg1, arg2,_,_) => op.toString
+      case Multop(op, args,_,_)      => op.toString
+      case Unop(op, arg,_,_)          => op.toString
+      case Redop(op, arg,_,_)        => "red" + op.toString
+      case Redop2(op, arg,_,_)       => "red2" + op.toString
+      case e @ Broadcast(arg,_,_)    => "Broadcast" + ("" + (e.locus.asInstanceOf[T[_, _]] match { case T(x, y) => y })).charAt(0)
+      case Transfer(arg,_,_)         => "Transfer"
+      case Sym(arg,_,_,_)              => "sym "
+    } }
+  
     def propagate3(id: bij[L, R]): ASTL[L, R] = {
     def id2[L3 <: Locus, R3 <: Ring]: bij[L3, R3] = d => id(d.asInstanceOf[ASTLtrait[L, R]]).asInstanceOf[ASTLtrait[L3, R3]] //introduit des variables libres
       val newD = this.asInstanceOf[AST[_]] match {
@@ -98,6 +110,10 @@ sealed abstract class ASTL[ L <: Locus,  R <: Ring]()(implicit m: repr[Tuple2[L,
  * this enables to enforce the covariance in L:Locus and R:Ring, which is intuitive and should therefore facilitate things later on. 
  *  */
 object ASTL { 
+  
+  
+ 
+     
   import scala.collection.mutable.HashMap
   /**it will compute the number of bits of all subexpression of d, and also compute a new tree inserting extend wherever needed */
   def computeNbit(nbitL: HashMap[ASTLg, Int], affectmap: Map[String, Affect[ASTLg]], d: ASTLg): ASTLg = {
@@ -106,7 +122,7 @@ object ASTL {
     def computeNbit[L2 <: Locus, R2 <: Ring](d: ASTLtrait[L2, R2]): ASTLtrait[L2, R2] =
       {
         val newD = d.asInstanceOf[AST[_]] match {
-          case Read(n) => nbitL += d -> nbitL(affectmap(n).exp); d
+          case Reead(n) => nbitL += d -> nbitL(affectmap(n).exp); d
           case Layer(n) => nbitL += d -> n; d
           case Const(c,_,_) => nbitL += d -> ASTB.computeNbit(nbitB, c); d
           case e @ Unop(op, arg,_,_) =>

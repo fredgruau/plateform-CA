@@ -87,7 +87,7 @@ object ASTB { //
       case ConstInt(n) => log2(n) // new Read[Tuple2[L2, R2]](n)(d.mym.asInstanceOf[repr[Tuple2[L2, R2]]]) with ASTLtrait[L2, R2]
       case True()      => 1 //ca sera augmenté ensuite.
       case False()     => 1
-      case Call1(f, e) => computeNbit( nbit + (f.p1 ->  computeNbit(nbit, e)),       f.body)      
+      case Caall1(f, e) => computeNbit( nbit + (f.p1 ->  computeNbit(nbit, e)),       f.body)      
       case Call2(f, e,e2) => computeNbit( nbit + (f.p1 ->  computeNbit(nbit, e)) + (f.p2 ->  computeNbit(nbit, e2)),  f.body)
       case e @ Param(x)                        => nbit(e)
       case Neg(x)                              => computeNbit(nbit, x)
@@ -140,10 +140,10 @@ object ASTB { //
   val inc: Fundef1R[I] = { val x = p[I]("x"); Fundef1("inc", Xor(x, Scan1(x, andB, True[B], Left(), true)), x) } //TODO a tester
   //val gtB: Fundef1[SI,B] = { val xsi = Param[SI]("xsi"); Fundef1("gt",   Concat2( Elt(2), x) } //TODO a tester
   val notNullB: Fundef1[I, B] = { val x12 = p[I]("x"); Fundef1("notNull", Reduce(x12, orB, False[B]), x12) }
-  val sign: Fundef1R[I] = { val x = p[I]("x"); Fundef1("sign", Concat2(new Call1(notNullB, x) with ASTBtrait[B], Elt(2, x)), x) } //TODO remplacer 2 par size.
+  val sign: Fundef1R[I] = { val x = p[I]("x"); Fundef1("sign", Concat2(new Caall1(notNullB, x) with ASTBtrait[B], Elt(2, x)), x) } //TODO remplacer 2 par size.
 
   //Attention, lorsq'on prend le opp d'un unsigned, faut vérifier que ca devient un signe, et que la taille augmente. (commencer par concateter 0)
-  val opp: Fundef1R[I] = { val x = p[I]("x"); ; Fundef1("opp", new Call1(inc, Neg(x).asInstanceOf[AST[I]]) with ASTBtrait[I], x) }
+  val opp: Fundef1R[I] = { val x = p[I]("x"); ; Fundef1("opp", new Caall1(inc, Neg(x).asInstanceOf[AST[I]]) with ASTBtrait[I], x) }
   val other: Fundef2R[B] = { val (xb, yb) = (p[B]("xb"), p[B]("yb")); Fundef2("other", yb, xb, yb) }
   /** result in shifting bits towards the tail, entering a zero at the end of the list  */
   val halveB: Fundef1R[I] = { val x = p[I]("x"); Fundef1("halve", Scan1(x, other, False[B], Right(), true), x) } //TODO a tester

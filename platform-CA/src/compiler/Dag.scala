@@ -1,20 +1,12 @@
 package compiler
 
+import scala.collection._
 import junit.framework.TestCase
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.fail
 import scala.collection.immutable.HashMap
- 
-/* trait Dag2[+T <: Dag2[T]] {
-  def neighbor: List[_<: Dag2[_]]
-  /**by default there is no new fiedls to visit */
-  def other: List[T] = List.empty
-  def toStringTree: String = toString + (neighbor.size match {
-    case 0 => " "
-    case 1 => " " + neighbor.head.toStringTree
-    case _ => "(" + (neighbor.map(_.toStringTree)).foldLeft("")(_ + ", " + _) + ")" //TODO virer la premiere virgule
-  })
-} */
+import scala.collection.mutable.LinkedHashMap
+
 /**
  * Node of a directed acyclic graph
  * getCycle is used to test the absence of cycles
@@ -25,49 +17,16 @@ import scala.collection.immutable.HashMap
  *     to complete on the fly an initial set of minimals
  */
 trait Dag[T <: Dag[T]] {
-  def neighbor: List[T ]
+  def neighbor: List[T]
   /**by default there is no new fiedls to visit */
   def other: List[T] = List.empty
-  def toStringTree: String = toString + (neighbor.size match {
-    case 0 => " "
-    case 1 => " " + neighbor.head.toStringTree
-    case _ => "(" + (neighbor.map(_.toStringTree)).foldLeft("")(_ + ", " + _).substring(2) + ")" //le substring vire la premiere virgule
-  })
-}
-//(neighbor.map( _ .toString)).foldLeft("")(_ + ", " + _)
-  
-
-/** offer the additional possibility to do substitution on the neighbor by using
- *  an ad hoc implementation of a lazzy var */ 
-//TODO je pense qu'il y a un bug dans le substitute, parce que cela ne modifie pas l'AST lui meme avec ses cases class.
-trait MutableDag[T <: Dag[T]] extends Dag[T] {
-  def neighbor2: List[T]
-  private[this] var _field: List[T] = _
-  def substituteInArg() 
-  def neighbor = {
-    if (_field == null) {
-      _field = neighbor2
-    }
-    _field 
-  } 
-  def field_=(str: List[T]) {
-    _field = str
-  }
-  /**New added functionality brough by the trait, allowing substitution of one node by others.*/
-  def substitute(t: T, newt: T):Boolean = {
-    var changed=false
-    _field = _field.map(n => if (n == t){changed=true; newt} else n)
-    if (changed) substituteInArg() 
-    return changed
-  }
-  /**Produit un dag fidéle a ce qui imprimé, en factorisant lorsqu'il y a des sous-arbres identiques.  */
-   def fold( repres: HashMap[T, T]) = { 
-    _field = _field.map(n =>  repres(n))
-     substituteInArg()  
-  } 
+  def toStringTree: String = toString + " " +
+    (if (neighbor.size > 1 || this.isInstanceOf[AST.Neton[_]]) "(" + (neighbor.map(_.toStringTree)).foldLeft("")(_ + ", " + _).substring(2) + ")" //le substring vire la premiere virgule
+    else if (neighbor.size == 1) neighbor.head.toStringTree else " ")
 }
 
 object Dag {
+
   /**
    * Used to instanciate a hashset "visited" of the right type T <: Dag[T]
    */
@@ -127,6 +86,25 @@ object Dag {
    */
   def getCycle[T <: Dag[T]](n: T): Option[Vector[T]] =
     { val dfs = new Dfs[T]; return dfs.dfs(n, Vector.empty) }
+
+  /** Topological sort is done by finding minimals, and then visiting nodes starting  from minimals*/
+  def sort[T <: Dag[T]](l: List[T]): List[T] = {
+    //finds node with no incomming links:
+    val withIncomming = immutable.HashSet.empty[T] ++ l.map(_.neighbor).flatten
+    val noIncomming = (immutable.HashSet.empty[T] ++ l) -- withIncomming
+    val (orderdNodes, visited1) = getGreater(noIncomming.toList)
+    return (orderdNodes)
+  }
+  /**
+   * computes the connected components the resulting partition is a kind of list of list, (iterable of Iterable)
+   * The DAG must extends union so as to have the necessary private field myroot,rank,parent, plus the code of union.
+   * @p  predicate defines adjacence
+   */
+  def components[T <: Dag[T] with Union[T]](all: List[T], p: (T, T) => Boolean): Iterable[Iterable[T]] = {
+    for (src <- all) for (target <- src.neighbor) if (p(src, target)) src.union(target);
+    val m = LinkedHashMap.empty ++ all.map(x => (x -> x.root)); // print(m)
+    m.groupBy(_._2).map { case (k, v) => v.keys }  
+  }
 
 }
 

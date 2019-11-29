@@ -4,15 +4,17 @@ import junit.framework.TestCase
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.fail 
 
+ 
+
 class  DagTest  extends TestCase {
-  /** A node of a DAG for testing cycles implemented as a Bag of neighbors
+  
+ /** A node of a DAG for testing cycles implemented as a Bag of neighbors
  *  @constructor create a node with neighbors and a name
  *  @param neighbors  passed by name for delaying evaluation
  *  @param name for printing purpose
  */
-   class Node(  neighbors : => List[Node],val name:String) extends Dag[Node]{
+   class Node(  neighbors : => List[Node],val name:String) extends Dag[Node]    {
      def neighbor=neighbors;
-      
      override def toString=name;
      def this( name:String)=this( List.empty,name)
      def this( name:String,e : =>  Node )=this( List(e),name)

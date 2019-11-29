@@ -6,7 +6,7 @@ import junit.framework.Assert.assertEquals
 import junit.framework.Assert.fail
 import scala.collection.immutable.HashMap
 import scala.collection.mutable.LinkedHashMap
-
+ 
 /**
  * Node of a directed acyclic graph
  * getCycle is used to test the absence of cycles

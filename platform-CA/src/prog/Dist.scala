@@ -28,7 +28,7 @@ class Dist(val source: BoolV) extends Layer[V, SI](3) {
 class ConstLayer[L <: Locus, R <: Ring](nbit: Int)(implicit m: repr[L], n: repr[R]) extends Layer[L, R](nbit) {
   val next = ~this //yes
 }
-
+ 
 class TestDist extends Circuit[V, SI](Dist.myInput) {
   val src = new ConstLayer[V, B](1)
   val dist = new Dist(src )

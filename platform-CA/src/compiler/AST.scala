@@ -106,7 +106,14 @@ abstract class AST[+T]()(implicit m: repr[T]) extends Dag[AST[_]] with Named {
   def unfoldSpace(m:Machine ):List[ASTBt[_]] =  throw(new RuntimeException("unfoldSpace must be applied on ASTLtonly ")) 
   def unfoldSimplic(m:Machine ):ArrAst= throw(new RuntimeException("unfoldSpace must be applied on ASTLtonly ")) 
   def unfoldTransfer(m:Machine ):ArrArrAst= throw(new RuntimeException("unfoldSpace must be applied on ASTLtonly ")) 
-  def align:iTabSymb[Array[Int]]= throw(new RuntimeException("align must be applied on ASTLtonly ")) 
+  /**   Compute alignement with respect to input variables, and also constraint, given that v is the variable if we make a reduction*/
+  def align(cs:TabConstr,v:String):iTabSymb[Array[Int]]= throw(new RuntimeException("align must be applied on ASTLtonly ")) 
+   /**True if the exp is a call to a fun2, whose first arg is a Tminus1 */
+  def firstArgDelayed(muInstr:iTabSymb[List[Affect[_]]] ):Boolean=this match{
+    case Call2(f, Read(s), a2) =>  val Array(rad,suf)=   s.split("\\$")
+      muInstr(rad)(order(suf)) .exp.isInstanceOf[ASTB.Tminus1[_]]
+    case _ => false
+  }
 }
 
 object AST {

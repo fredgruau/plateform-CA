@@ -1,4 +1,7 @@
 package compiler
+
+import scala.collection._
+import Constraint._
 import Align._
 import UsrInstr._
 import junit.framework.Assert.assertEquals
@@ -16,27 +19,48 @@ sealed abstract class Locus {
   /**suffix of variable names representing simplicial types */
   val sufx: Array[String]
   def isTransfer = false
-  def arity=if(isTransfer) 6 else sufx.length
+  def arity = if (isTransfer) 6 else sufx.length
 
   /**encodes a neutral permutation with the right number of elements. */
-    lazy val neutral:Array[Int]=Array.range(0,arity) //we put lazy otherwise pb in initialization order
+  lazy val neutral: Array[Int] = Array.range(0, arity) //we put lazy otherwise pb in initialization order
 }
 abstract class S extends Locus with Ordered[S] {
+  def propagateFrom(s: Array[Int], c: Array[Int]): Option[Array[Int]]
   def compare(that: S): Int = { toString.compareTo(that.toString) }
-   val proj:Array[Int] 
+  val proj: Array[Int]
+  /**Number of schedule that can be partitionned */
+  val card: Int;
+  val part:Array[Int]
+  /**Number of schedule that can be partitionned and verify a strict ordering */
+  val cardSucc: Int
 }
-final case class V() extends S { val sufx = Array("");val proj= Array(0,0,0,0,0,0 )};
-final case class E() extends S { val sufx = Array("h", "d", "ad"); val proj=Array(0,0,1,1,2,2 ) }; //"h" stands for horizontal, "d" diagonal, "ad" antidiagonal
-final case class F() extends S { val sufx = Array("up", "do"); val proj=Array(0,0,0,1,1,1) }
+final case class V() extends S {
+  val sufx = Array(""); val proj = Array(0, 0, 0, 0, 0, 0); val card = 0; val cardSucc = 0
+  val part=Array(0,1,2,3,4,5)
+  def propagateFrom(s: Array[Int], c: Array[Int]) = None
+};
+final case class E() extends S {
+  val sufx = Array("h", "d", "ad"); val proj = Array(0, 0, 1, 1, 2, 2); val card = 48; val cardSucc = 6;
+  val part=Array(0,0,1,1,2,2)
+ 
+  def propagateFrom(s: Array[Int], c: Array[Int]) = Some(Array(c(s(0) * 2), c(s(0) * 2) + 1, c(s(1) * 2), c(s(1) * 2) + 1, c(s(2) * 2), c(s(2) * 2) + 1))
+}; //"h" stands for horizontal, "d" diagonal, "ad" antidiagonal
+final case class F() extends S {
+  val sufx = Array("up", "do"); val proj = Array(0, 0, 0, 1, 1, 1); val card = 48; val cardSucc = 2
+    val part=Array(0,0,0,1,1,1)
+  def propagateFrom(s: Array[Int], c: Array[Int]) = Some(Array(c(s(0) * 3), c(s(0) * 3) + 1, c(s(0) * 3 + 2), c(s(1) * 3), c(s(1) * 3) + 1, c(s(1) * 3 + 2)))
+}
+ abstract class TT extends Locus
 /** T stands for Transfer, and uses two simplicial locus. The first is the simplicial. T[V,E] corresponds to  eV  */
-final case class T[+S1 <: S, +S2 <: S](from: S1, to: S2) extends Locus {
+final case class T[+S1 <: S, +S2 <: S](from: S1, to: S2) extends TT {
   override def isTransfer = true
   val sufx = from match {
-    case V() => to match { case E() => Array("w", "nw", "ne", "e", "se", "sw") case F() => Array("nw", "n", "ne", "se", "s", "sw") }
+    case V() => to match { case E() => Array("w", "nw", "ne", "e", "se", "sw") case F() => Array("wn", "n", "en", "es", "s", "ws") }
     case E() => to match { case V() | F() => Array("1", "2") }
     case F() => to match { case E() => Array("p", "b1", "b2") case V() => Array("b", "s1", "s2") } //"s" stands for side, "b" for base.
   }
 }
+
 /**
  * AST of spatial type
  *  @tparam L: the locus in V,E or F   *  @tparam R: the  type   *  @constructor
@@ -172,21 +196,37 @@ sealed abstract class ASTL[L <: Locus, R <: Ring]()(implicit m: repr[Tuple2[L, R
     case _                      => false
   }
 
-  override def align: iTabSymb[Array[Int]] = {
-       this.asInstanceOf[ASTLg] match {       //read and Call treated in ASTLt.
+  override def align(cs: TabConstr, v: String): iTabSymb[Array[Int]] = {
+    this.asInstanceOf[ASTLg] match { //read and Call treated in ASTLt.
       case Const(_, _, _)       => immutable.HashMap()
-      case Broadcast(arg, _, _) => arg.align.map { case (k, v) => k -> arg.locus.proj } //does not depend on v, because v is constant
-      case Send(args)           => immutable.HashMap.empty ++ args.map(a => a.align.map { case (k, v) ⇒ k → a.locus.proj }).flatten //we can make  a union because does not depend on v
-      case Transfer(arg, _, _) =>       val T(s1, s2) = arg.locus; val t = hexPermut((s1, s2)); composeAll(  t,arg.align)  
-      case Unop(_, arg, _, _)        => arg.align
-      case Binop(_, arg, arg2, _, _) => arg.align ++ arg2.align //arg2 has priority over arg if non equal
-      case Redop(_, arg, _, _)       => arg.align //Redop is done in 6 instruction that will be scheduled according to the alignemet of its operand.
-      case Clock(arg, dir, _, _) => val T(_, des) = this.locus; val T(_, src) = arg.locus; val trigo = !(dir); val atr = rotPerm(if (trigo) 1 else 5) //faudrait vérifier is c'est pas le contraire
-        if ((src < des) ^ dir) arg.align else   composeAll(atr, arg.align) 
-      case Sym(arg, _, _, _) => val T(_, des) = this.locus;  val T(s1, src) = arg.locus; val atr = rotPerm(s1 match { case E() => 1  case F() => if (src < des) 1 else 2}); composeAll( atr,arg.align) 
+      case Broadcast(arg, _, _) => arg.align(cs, v).map { case (k, v) => k -> arg.locus.proj } //does not depend on v, because v is constant
+      case Send(args)           => immutable.HashMap.empty ++ args.map(a => a.align(cs, v).map { case (k, v) ⇒ k → a.locus.proj }).flatten //we can make  a union because does not depend on v
+      case Transfer(arg, _, _) =>
+        val T(s1, s2) = arg.locus; val t = hexPermut((s1, s2)); composeAll(t, arg.align(cs, v))
+      case Unop(_, arg, _, _) => arg.align(cs, v)
+      case Binop(_, arg, arg2, _, _) =>
+        //be compute the constraint cycle here, because we can
+        val a1 = arg.align(cs, v); val a2 = arg2.align(cs, v)
+        val k = a1.keys.toSet.intersect(a2.keys.toSet)
+        if (!k.isEmpty) { //k is the aux defined by an instr which will have to use two registers. 
+          val e = k.head;
+          if (a1(e) != a2(e)) { cs += v -> immutable.HashSet(Cycle(compose(invert(a1(e)), a2(e))))
+         
+          }
+        }
+        a1 ++ a2 //arg2 has priority over arg if non equal
+      case Redop(_, arg, _, _) => //we compute a constraint, that is implicitely, the constraint to be checked for partitionning the Reduction. 
+        
+        arg.align(cs, v) //Redop is done in 6 instruction that will be scheduled according to the alignemet of its operand.
+      
+      
+      case Clock(arg, dir, _, _) =>
+        val T(_, des) = this.locus; val T(_, src) = arg.locus; val trigo = !(dir); val atr = rotPerm(if (trigo) 1 else 5) //faudrait vérifier is c'est pas le contraire
+        if ((src < des) ^ dir) arg.align(cs, v) else composeAll(atr, arg.align(cs, v))
+      case Sym(arg, _, _, _) =>
+        val T(_, des) = this.locus; val T(s1, src) = arg.locus; val atr = rotPerm(s1 match { case E() => 1 case F() => if (src < des) 1 else 2 }); composeAll(atr, arg.align(cs, v))
       case l: Layer[_, _] => immutable.HashMap(l.name -> l.locus.neutral)
     }
-     
   }
 }
 /**
@@ -194,8 +234,9 @@ sealed abstract class ASTL[L <: Locus, R <: Ring]()(implicit m: repr[Tuple2[L, R
  * this enabled to enforce the covariance in L:Locus and R:Ring, which was intuitive and would therefore facilitate things later on.
  * but then we abandonned it, so we could come back to previous setting where type was not stored, and copied in case class copying (see ASTBs).
  */
-object ASTL { val u = 1 
-    private[ASTL] final case class Const[L <: Locus, R <: Ring](cte: ASTB[R], m: repr[L], n: repr[R]) extends ASTL[L, R]()(repr.nomLR(m, n)) with EmptyBag[AST[_]]
+object ASTL {
+  val u = 1
+  private[ASTL] final case class Const[L <: Locus, R <: Ring](cte: ASTB[R], m: repr[L], n: repr[R]) extends ASTL[L, R]()(repr.nomLR(m, n)) with EmptyBag[AST[_]]
   private[ASTL] final case class Broadcast[S1 <: S, S2 <: S, R <: Ring](val arg: ASTLt[S1, R], m: repr[T[S1, S2]], n: repr[R])
     extends ASTL[T[S1, S2], R]()(repr.nomLR(m, n)) with Singleton[AST[_]]
   private[ASTL] final case class Send[S1 <: S, S2 <: S, R <: Ring](val args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, S2]], n: repr[R])
@@ -212,7 +253,7 @@ object ASTL { val u = 1
     extends ASTL[T[S1, S3], R]()(repr.nomLR(m, n)) with Singleton[AST[_]]
   private[ASTL] final case class Sym[S1 <: S, S2 <: S, S3 <: S, R <: Ring](val arg: ASTLt[T[S2, S1], R], m: repr[T[S2, S3]], t: CentralSym[S1, S2, S3], n: repr[R])
     extends ASTL[T[S2, S3], R]()(repr.nomLR(m, n)) with Singleton[AST[_]]
-  /**Field which has a value both  at time t, and t+1 */ 
+  /**Field which has a value both  at time t, and t+1 */
   trait Strate[L <: Locus, R <: Ring] { val pred: ASTLt[L, R]; val next: ASTLt[L, R] }
   /**Unlike other constructors,  Layer is not defined as a case class, otherwise equality between two layer of identical number of bits would allways hold */
   abstract class Layer[L <: Locus, R <: Ring](val nbit: Int)(implicit m: repr[L], n: repr[R]) extends ASTL[L, R]() with EmptyBag[AST[_]] with Strate[L, R] {
@@ -227,8 +268,8 @@ object ASTL { val u = 1
   def rotL[T](a: Array[T])(implicit m: ClassTag[T]): Array[T] = a.drop(1) :+ a(0)
   def rotR[T](a: Array[T])(implicit m: ClassTag[T]): Array[T] = a(a.length - 1) +: a.take(a.length - 1)
   def rot[T](a: Array[T], dir: Boolean)(implicit m: ClassTag[T]) = if (dir) rotR(a) else rotL(a) //dir=True correspond to trigonometric order
-  def rotPerm(dec:Int):Array[Int] = {val r=new Array[Int](6); for (i <- 0 to 5) r(i) = (i+dec) % 6;r}
-  def composeAll( p: Array[Int],t: iTabSymb[Array[Int]])=t.map { case (k, v) => k -> hcompose( p,v) }
+  def rotPerm(dec: Int): Array[Int] = { val r = new Array[Int](6); for (i <- 0 to 5) r(i) = (i + dec) % 6; r }
+  def composeAll(p: Array[Int], t: iTabSymb[Array[Int]]) = t.map { case (k, v) => k -> hcompose(p, v) }
   import scala.language.implicitConversions
   /**Allows to consider false and true as occurence of ASTLs */
   implicit def fromBool[L <: Locus](d: Boolean)(implicit m: repr[L]): ASTLt[L, B] = Const(Boolof(d), m, repr.nomB)
@@ -246,10 +287,10 @@ object ASTL { val u = 1
   def v[S1 <: S, R <: Ring](arg: ASTLt[S1, R])(implicit m: repr[T[S1, V]], n: repr[R]) = Broadcast[S1, V, R](arg, m, n); // for broadcast, we want to specify only the direction where broadcasting takes place.
   def e[S1 <: S, R <: Ring](arg: ASTLt[S1, R])(implicit m: repr[T[S1, E]], m2: repr[T[E, S1]], n: repr[R]) = Broadcast[S1, E, R](arg, m, n); // this is done using three function e,v,f.
   def f[S1 <: S, R <: Ring](arg: ASTLt[S1, R])(implicit m: repr[T[S1, F]], m2: repr[T[F, S1]], n: repr[R]) = Broadcast[S1, F, R](arg, m, n);
-  //Build a tranfser, just like v,e,f, however specify a diffent Simplicial field for each component. 
-  def sendv[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, V]], n: repr[R]) = {assert(args.length==6/args.head.locus.arity ); Send[S1, V, R](args);} //TODO check the length of args
-// def sende[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, E]], n: repr[R]) = Send[S1, E, R](args) ;
-//  def sendf[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, F]], n: repr[R]) = Send[S1, F, R](args) ;
+  //Build a tranfser, just like v,e,f, however specify a diffent Simplicial field for each component.
+  def sendv[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, V]], n: repr[R]) = { assert(args.length == 6 / args.head.locus.arity); Send[S1, V, R](args); } //TODO check the length of args
+  // def sende[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, E]], n: repr[R]) = Send[S1, E, R](args) ;
+  //  def sendf[S1 <: S, R <: Ring](args: List[ASTLt[S1, R]])(implicit m: repr[T[S1, F]], n: repr[R]) = Send[S1, F, R](args) ;
 
   //def castB2R[L<:Locus,R<:I]( arg: AST[L,B] )(implicit m : repr[L])  = Unop[L,B,R] (castB2RN[R],arg );
   def transfer[S1 <: S, S2 <: S, R <: Ring](arg: ASTLt[T[S1, S2], R])(implicit m: repr[T[S2, S1]], n: repr[R]) = new Transfer(arg, m, n);
@@ -313,6 +354,7 @@ object ASTL { val u = 1
   def opp[L <: Locus, R <: Ring](arg: ASTLt[L, R])(implicit m: repr[L], n: repr[R]) = Unop[L, SI, SI](oppSI, arg.asInstanceOf[ASTLt[L, SI]], m, repr.nomSI)
   //{ ASTL.Unop(opp.asInstanceOf[Fundef1[R, SI]], this, m, repr.nomSI) }
 
+  
   /** uses a fixed val addUISI, and let the compiler believe that this val has the appropriate expected  type R=UI or R=SI  */
   def add[L <: Locus, R <: Ring](arg1: ASTLt[L, R], arg2: ASTLt[L, R])(implicit m: repr[L], n: repr[R]): ASTL[L, R] = Binop(addUISI.asInstanceOf[Fundef2[R, R, R]], arg1, arg2, m, n);
   type ASTLtG = ASTLt[_ <: Locus, _ <: Ring]
@@ -329,7 +371,6 @@ object ASTL { val u = 1
   type BoolvF = ASTLt[T[F, V], B]; type BoolfV = ASTLt[T[V, F], B];
   type BoolfE = ASTLt[T[E, F], B]; type BooleF = ASTLt[T[F, E], B];
   //  def neg2[L <: Locus, R <: Ring](arg: AST2[L, R])(implicit m: repr[L], n: repr[R]) = Unop[L, R, R](negN[R], arg);
-  // implicit def fromAST2[L<:Locus,R<:Ring](x:AST2[L, R]):ASTL[L,R]=x.asInstanceOf[ASTL[L,R]]
-
+  // implicit def fromAST2[L<:Locus,R<:Ring](x:AST2[L, R]):ASTL[L,R]=x.asInstanceOf[ASTL[L,R]
 }
 

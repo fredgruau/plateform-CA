@@ -10,7 +10,7 @@ import Instr._
 
 /**Instruction used within the compiler, call, affect. Dag and Union allows to defined ConnectedComp  */
 abstract class Instr extends Dag[Instr] with Align[Instr] {
-  def useless = false;
+  def useless = false; 
   var neighbor: List[Instr] = List.empty; //to be set if we want to use the Dag feature.
   var alignPerm:iTabSymb[Array[Int]]=Map.empty  // to be set if we want to use the Align feature, contains an alignment towards each usedvars of the instr (indexed by the string)
   /*Must return an alignement from this to n.   */
@@ -75,16 +75,16 @@ abstract class Instr extends Dag[Instr] with Align[Instr] {
   def unfoldSpace(m: Machine, tSymb: TabSymb[InfoNbit[_]]): List[Instr] = this match {
     case Affect(v, exp) => // println(exp.toStringTree) ;
       exp.asInstanceOf[ASTLt[_, _]].locus match {
-        case s: S => s.sufx.zip(exp.unfoldSimplic(m)).map({ case (suf, e) => Affect(v + suf, e) }).toList
+        case s: S => s.sufx.zip(exp.unfoldSimplic(m)).map({ case (suf, e) => Affect(v +"$"+suf, e) }).toList
         case l @ T(s1, s2) => s1.sufx.zip(exp.unfoldTransfer(m)).map({
           case (suf1, t) =>
-            l.sufx.zip(t).map({ case (suf2, e) => Affect(v + suf1 + suf2, e) }).toList
+            l.sufx.zip(t).map({ case (suf2, e) => Affect(v + "$"+ suf1 + suf2, e) }).toList
         }).toList.flatten
       }
     case CallProc(f, n, e) => List(CallProc(f, n.map(deploy(_, tSymb)).flatten, e.map(_.unfoldSpace(m)).flatten)) //tSymb(n).t._1
   }
   
-  def align={ alignPerm=a(this).exp.align  }
+  def align(cs:TabSymb[immutable.HashSet [Constraint]])={ alignPerm=a(this).exp.align(cs, names(0))  }
 }
 
 /**   call of a procedure, where several parameters can be passed by result. Printed shows them as results being affected at the same time  */
@@ -94,7 +94,8 @@ case class CallProc(val f: String, val names: List[String], val exps: List[AST[_
 };
 
 case class Affect[+T](val name: String, val exp: AST[T]) extends Instr {
-  val names = List(name); override def toString = pad(name, 25) + "<-  " + exp.toStringTree  +  alignPerm.map({case(k,v)=> k +" "+ v.toList+";  "})+ "\n"
+  val names = List(name); override def toString = pad(name, 25) + "<-  " + exp.toStringTree   +  alignPerm.map({case(k,v)=> k +" "+ v.toList+";  "})  + "\n"
+   
   def usedVars = exp.symbols
   /**
    * for a non macro affectation of parameter or a Layer creates a useless entry in the memory of the CA

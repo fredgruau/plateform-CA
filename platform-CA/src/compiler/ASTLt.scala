@@ -92,16 +92,16 @@ trait ASTLt[L <: Locus, R <: Ring] extends AST[Tuple2[L, R]] with MyOp[L, R] wit
   override def unfoldSimplic(m: Machine): ArrAst = this.asInstanceOf[AST[_]] match {
     case Read(s) =>
       val r = rpart(mym.asInstanceOf[repr[Tuple2[L, R]]]);
-      this.locus.sufx.map((suf: String) => (new Read[R](s+ suf)(r) with ASTBt[R]). asInstanceOf[ ASTBt[_<:Ring ]] ) 
+      this.locus.sufx.map((suf: String) => (new Read[R](s+"$"+ suf)(r) with ASTBt[R]). asInstanceOf[ ASTBt[_<:Ring ]] ) 
     case _ => throw (new RuntimeException("unfoldSpace act only on Reads for ASTL "))
   }
   override def unfoldTransfer(m: Machine): ArrArrAst = this.asInstanceOf[AST[_]] match {
     case Read(s) =>
       val T(s1, s2) = this.locus; val r = rpart(mym.asInstanceOf[repr[Tuple2[L, R]]]);
-      s1.sufx.map((suf1: String) => this.locus.sufx.map((suf2: String) =>(new Read(s+suf1+suf2)(r) with ASTBt[R]). asInstanceOf[ ASTBt[_<:Ring ]] )) 
+      s1.sufx.map((suf1: String) => this.locus.sufx.map((suf2: String) =>(new Read(s+"$"+ suf1+suf2)(r) with ASTBt[R]). asInstanceOf[ ASTBt[_<:Ring ]] )) 
     case _ => throw (new RuntimeException("unfoldSpace act only on Reads for ASTL "))
   }
-  override def align:iTabSymb[Array[Int]] =  this.asInstanceOf[AST[_]] match {
+  override def align(cs:TabConstr,v:String):iTabSymb[Array[Int]] =  this.asInstanceOf[AST[_]] match {
     case Read(s) =>  immutable.HashMap( s->locus.neutral)
     case Param(s) => immutable.HashMap( s->locus.neutral)
 }

@@ -27,7 +27,8 @@ trait ASTBt[+R <: Ring] extends AST[R] with MyOpB[R] with MyOpIntB[R] {
  *  We wish to be able to preserve covariance of R.
  */
 sealed abstract class ASTB[+R <: Ring]()(implicit m: repr[R]) extends ASTBt[R]{
-  
+ 
+    
   override def toString: String =  
     this.asInstanceOf[ASTB[_ ]] match { 
       case  Intof (v )=> ""+v 

@@ -15,7 +15,7 @@ trait Union[T<:Union[T]] {   self:T =>
   def transitiveClosure (xroot: T, x:T, y: T) = {}
   def union (y: T) = {
     val xroot = root; val yroot = y.root
-    if (xroot != yroot) {
+    if (xroot != yroot) { //dans le cas de align, si xroot = yroot faut quand meme vérifier que les alignement coincide. 
       if (xroot.rank < yroot.rank) { transitiveClosure(xroot,this , y); xroot.parent = yroot;  }
       else {
         yroot.parent = xroot; transitiveClosure(yroot,y, this)

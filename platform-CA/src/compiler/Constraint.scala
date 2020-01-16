@@ -61,18 +61,20 @@ object Constraint {
     final case class Partition( s:S, b:Array[Int]) extends Constraint{
     def card=s.card //it depends where we starts. Cycles could go both direction, so we should multiply by two.  we consider just one, for "simplification"
     def permute(p: Array[Int] )=Partition(s,b.map(p(_)))
+    def schedules=null
     }    
       /** s is either an E or an F schedule upon creating the constraint, b must contain s.part at the beginning,
    *  the constraint is valid for schedule such that 
    *  1 after dividing by two for E (resp. by 3 for F) the image by b, 
    *  the numbers get "not mixed" for exemple their can't be 010122, but 110022 is ok.
-   */
+   */ 
 
     final case class PartitionSucc(s:S ,b:Array[Int]) extends Constraint{
     def card=s.cardSucc //it depends where we starts. Cycles could go both direction, so we should multiply by two.  we consider just one, for "simplification"
     
      def permute(p: Array[Int] )=Partition(s,b.map(p(_)))
    
+    def schedules=null
     override def propagateFrom(s2:Array[Int]):Option[Array[Int]]= s.propagateFrom(s2,b)
       
     }

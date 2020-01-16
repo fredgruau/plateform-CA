@@ -40,9 +40,10 @@ abstract class Circuit[L <: Locus, R <: Ring](override val p: Param[_]*) extends
     val prog3 = prog2.procedurise();  
     val prog4 = prog3.nbit(List(1)); //faut mettre les tailles des entiers utilisés pour appeller main.
     val prog5=prog4.macroise()
-   // print(prog5+ "\n\n");
+    print(prog5+ "\n\n");
     val prog6=prog5.unfoldSpace(m)
       print(prog6);  
+    val prog7=prog6.foldRegister()
     //TODO mettre les noms sur les fonctions, aussi.
   }
 }

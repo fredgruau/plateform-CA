@@ -28,20 +28,21 @@ object ProgData {
   def newFunName() = "_fun" + getCompteur;
   def string(l: List[_], c: String): String = l.foldLeft("")(_ + c + _)
   def listOf[T](t: Map[String, T]) = { val (anon, definedMacros) = t.partition((x: (String, T)) => x._1.startsWith("_fun")); anon.toList ::: definedMacros.toList }
- // def string(t: iTabSymb[_], c: String): String = t.map { case (k, v) ⇒ k → v.toString }.foldLeft(" ")(_ + c + _)
- /**pring a map on several small lines, instead of one big line */
+  // def string(t: iTabSymb[_], c: String): String = t.map { case (k, v) ⇒ k → v.toString }.foldLeft(" ")(_ + c + _)
+  /**pring a map on several small lines, instead of one big line */
   def string[T](t: TabSymb[T], s: String) = t.toList.grouped(4).toList.map(_.mkString(s)).mkString("\n") + "\n"
 
   /**add one (resp. two) suffixes to the variable names, for simplicial (resp. tranfer) variable */
   def deploy(n: String, tSymb: TabSymb[InfoNbit[_]]): List[String] = deploy(n, tSymb(n).t.asInstanceOf[Tuple2[_ <: Locus, _]]_1)
   def deploy(n: String, l: Locus): List[String] = l match {
-    case s: S      => s.sufx.map(n + _).toList
-    case T(s1, s2) => s1.sufx.map((suf1: String) => l.sufx.map(n + suf1 + _).toList).toList.flatten
+    case s: S      => s.sufx.map(n + "$" + _).toList
+    case T(s1, s2) => s1.sufx.map((suf1: String) => l.sufx.map(n + "$" + suf1 + _).toList).toList.flatten
   }
 
   //=> s1.sufixeS.map(s:String=>
 
   type TabSymb[T] = mutable.HashMap[String, T]; type AstField[T] = mutable.HashMap[AST[_], T]
+  type TabConstr = TabSymb[immutable.HashSet[Constraint]]
   type iTabSymb[T] = Map[String, T]; type iAstField[T] = Map[AST[_], T]
   /**spatial unfolding of an ASTL of "simplicial" type creates an array of array of ASTB. The cardinal of first array is 1,2,3 for V,F,E,  */
   type ArrAst = Array[ASTBg]
@@ -73,29 +74,36 @@ object ProgData {
         val Array(Array(h1, h2), Array(d1, d2), Array(ad1, ad2)) = t; //common to vE and fE
         des match {
           case V() => /*vE->eV*/
-            Array(Array(h2, Tminus1(ad2), shiftR(Tminus1(d2)), shiftR(h1), shiftR(ad1), shiftR(d1)))
+            Array(Array(h2, Tminus1(ad2), Tminus1(shiftR(d2)), shiftR(h1), shiftR(ad1), shiftR(d1)))
           case F() => /*fE->eF*/
             Array(Array(Tminus1(h1), ad1, d1), Array(shiftL(h2), ad2, d2))
         }
       case F() => des match {
         case V() => /*vF->fV*/
-          val Array(Array(ub, us1, us2), Array(db, ds1, ds2)) = t; Array(Array(Tminus1(ds1), Tminus1(ub), shiftR(Tminus1(ds2)), shiftR(us1), shiftR(db), us2))
+          val Array(Array(dp, db1, db2), Array(up, ub1, ub2)) = t; Array(Array(Tminus1(ub1), Tminus1(dp), shiftR(Tminus1(ub2)), shiftR(db1), shiftR(up), db2))
         case E() => /*eF->fE*/
-          val Array(Array(up, ub1, ub2), Array(dp, db1, db2)) = t; Array(Array(up, Tminus1(dp)), Array(ub2, db2), Array(ub1, shiftR(db1)))
+          val Array(Array(db, ds1, ds2), Array(ub, us1, us2)) = t; Array(Array(db, Tminus1(ub)), Array(ds2, us2), Array(ds1, shiftR(us1)))
       }
     }
   }
-
+  val order = immutable.HashMap("w" -> 0, "nw" -> 1, "ne" -> 2, "e" -> 3, "se" -> 4, "sw" -> 5,
+    "wn" -> 0, "n" -> 1, "en" -> 2, "es" -> 3, "s" -> 4, "ws" -> 5,
+    "h" -> 0, "d" -> 1, "ad" -> 2,
+    "h1" -> 0, "h2" -> 1, "d1" -> 2, "d2" -> 3, "ad1" -> 4, "ad2" -> 5,
+    "do" -> 0, "up" -> 1,
+    "dop" -> 0, "dob1" -> 1, "dob2" -> 2, "upp" -> 3, "upb1" -> 4, "upb2" -> 5,
+    "dob" -> 0, "dos1" -> 1, "dos2" -> 2, "upb" -> 3, "ups1" -> 4, "ups2" -> 5)
   val transfers: List[(S, S)] = List((V(), E()), (E(), V()), (V(), F()), (F(), V()), (E(), F()), (F(), E()))
 
   /** generates an input array*/
-  def inAr(s1: S, s2: S):ArrArrAst  = {var i = -1;def nameInt ={ i += 1; "" + i};  def myp() = new Param[B](nameInt)with ASTBt[B]; Array.fill(s1.arity)(Array.fill(6/s1.arity)(myp()))  }
+  def inAr(s1: S, s2: S): ArrArrAst = { var i = -1; def nameInt = { i += 1; "" + i }; def myp() = new Param[B](nameInt) with ASTBt[B]; Array.fill(s1.arity)(Array.fill(6 / s1.arity)(myp())) }
   /** automatically computes permutation implied by hexagon*/
-   val hexPermut: immutable.Map[(S, S), Array[Int]] = immutable.HashMap.empty ++ transfers.map((ss: (S, S)) => ss ->
-   { val (s1,s2)=ss;val t=hexagon(s1,s2,inAr(s1,s2));   val l=t.map(_.toList).toList.flatten;  //compute the permutation of T[S1,S2] => T[S2,S1]
-     val r=new Array[Int](6); var i=0; for(a<-l){ r(i)=a.symbols.head.toInt;i+=1};  r})
-
-
+  val hexPermut: immutable.Map[(S, S), Array[Int]] = immutable.HashMap.empty ++ transfers.map((ss: (S, S)) => ss ->
+    {
+      val (s1, s2) = ss; val t = hexagon(s1, s2, inAr(s1, s2)); val l = t.map(_.toList).toList.flatten; //compute the permutation of T[S1,S2] => T[S2,S1]
+      val r = new Array[Int](6); var i = 0; for (a <- l) { r(i) = a.symbols.head.toInt; i += 1 }; r
+    })
+  
   def apply[T](f: Fundef[T], repl: iAstField[AST[_]] = immutable.HashMap.empty): ProgData[_] = {
     val (computeNodes, visited1) = getGreater(
       f.body.asInstanceOf[AST[_]] :: repl.values.toList,
@@ -105,7 +113,7 @@ object ProgData {
     val funs: iTabSymb[Fundef[_]] = immutable.HashMap.empty ++ (computeNodes.collect { case l: Call[_] => (l.f.namef, l.f) })
     new ProgData[T](f, funs.map { case (k, v) ⇒ k → ProgData(v) }, allNodes)
   }
- 
+
 }
 
 /**
@@ -180,11 +188,10 @@ class ProgData[+T](val f: Fundef[T], val funs: iTabSymb[ProgData[_]], val allNod
 
 class ProgData1[+T](val f: Fundef[T], val instrs: List[Instr], val funs: iTabSymb[ProgData1[_]], val tSymbVar: TabSymb[InfoType[_]],
                     val paramD: List[String], val paramR: List[String]) {
-    override def toString: String =  paramD.mkString(" ") + "=>" + paramR.mkString(" ") + "\n" + instrs.mkString("") +
-    string(tSymbVar, "  |  \n ") + "\n"+   listOf(funs).mkString("\n \n  ")
+  override def toString: String = paramD.mkString(" ") + "=>" + paramR.mkString(" ") + "\n" + instrs.mkString("") +
+    string(tSymbVar, "  |  \n ") + "\n" + listOf(funs).mkString("\n \n  ")
 
-    
- // override def toString: String = string(paramD, " ") + "=>" + string(paramR, " ") + "\n" + string(instrs, " ") + "\n" + tSymbVar.toString + "\n" + string(funs, "\n Macro:") + "\n"
+  // override def toString: String = string(paramD, " ") + "=>" + string(paramR, " ") + "\n" + string(instrs, " ") + "\n" + tSymbVar.toString + "\n" + string(funs, "\n Macro:") + "\n"
   /**replaces function call by procedure call, introduces new names in tabSymb*/
   def procedurise(): ProgData1[T] = {
     val procedureFun = funs.map { case (k, v) => k -> v.procedurise() }
@@ -212,92 +219,4 @@ class ProgData1[+T](val f: Fundef[T], val instrs: List[Instr], val funs: iTabSym
 
 }
 
-class ProgData2(val instrs: List[Instr], val funs: iTabSymb[ProgData2], val tSymbVar: TabSymb[InfoNbit[_]],
-                val paramD: List[String], val paramR: List[String] //, val nbitExp: AstField[Int]
-                ) {
-  /** place anonymous macros first. */
-
-  override def toString: String =(if (isMacro) "Macro:" else "Loop: ")+ paramD.mkString(" ") + "=>" + paramR.mkString(" ") + "\n" + instrs.mkString("") +
-    string(tSymbVar, "  |  ") + "\n"+   listOf(funs).mkString("\n \n  ")
-
-  def needStored(s: String): Boolean = tSymbVar(s).k.needStored
-  def needStored(i: Instr): Boolean = needStored(i.names.head)
-
-  def NeedBuiltFun(finstrs: Iterable[Instr]): Boolean = {
-    for (i <- finstrs) if (!(i.asInstanceOf[Affect[_]].exp.concatElt)) return true
-    return false
-  }
-
-  /**
-   * Creates a subFunction from a set of Affectation supposed to be in topological order (not completely sure, though)
-   * DR parameter are repeated, but will be removed from results, when compiling the call, and the header.
-   * @Iterable[Instr] a set of affectation forming a connected component.
-   */
-  def builtFun(finstrs: Iterable[Instr]) = {
-    val fparamD = (immutable.HashSet.empty[String] ++ finstrs.map(_.asInstanceOf[Affect[_]].exp.symbols.filter(needStored(_))).toList.flatten).toList
-    val fparamR = finstrs.filter(needStored(_)).toList
-    val newtSymbVar: TabSymb[InfoNbit[_]] = mutable.HashMap.empty
-    for (p <- fparamD) { val old = tSymbVar(p); newtSymbVar += p -> new InfoNbit(old.t, ParamD(), old.nb) }
-    for (p <- finstrs) {
-      val n = p.names(0); val old = tSymbVar(n);
-      newtSymbVar += n -> new InfoNbit(old.t, if (!needStored(p)) Field() else if (fparamD.contains(n)) ParamDR() else ParamR(), old.nb)
-    }
-    new ProgData2(finstrs.toList, mutable.HashMap.empty, newtSymbVar, fparamD.toList, fparamR.map(_.names(0)))
-  }
-
-  /**Compute the Dag of instructions, where a neighbor is an input neigbor, i.e. affectation which set variables which are used, needs to compute definedBy*/
-  def readDependancy(instrs: List[Instr], t: TabSymb[InfoNbit[_]]): iTabSymb[Instr] = {
-    val definedBy: iTabSymb[Instr] = immutable.HashMap.empty ++ instrs.map(a => (a.names.map(_ -> a))).flatten
-    for (a <- instrs) a.neighbor = List.empty[Instr] ++ a.usedVars.filter(v => definedBy.contains(v) && !t(v).k.isLayer).map(definedBy(_));
-    definedBy
-  }
-  /**Obsolete, We now use a simpler way, visting from min element, where min is determined by varKind  */
-  def writeDependency(instrs: List[Instr], t: TabSymb[InfoNbit[_]]) = {
-    val usedBy: TabSymb[mutable.HashSet[Instr]] = mutable.HashMap.empty
-    for (i <- instrs) for (v <- i.usedVars) {
-      if (!usedBy.contains(v)) usedBy += v -> mutable.HashSet.empty[Instr]
-      usedBy(v) += i
-    }
-    for (a <- instrs) a.neighbor = a.neighbor ++ a.names.filter(t(_).k.isLayer).map(s => (usedBy(s) - a).toList).flatten
-    //if a layer is updated using its previous value it will create a loop on the updating instruction a.neighbor contains a, that's why we have to remove a explicitely
-  }
-
-  /**
-   * we are carefull about the fact that the new value memorized in a layer is stored, after all the instructions reading the layer are done.
-   * if the next value is to be reused, then, we must check that it is affected in another variable (because there will be two users: the memorize instr, and the other.
-   */
-  def isMacro=funs.isEmpty && tSymbVar.valuesIterator.find(_.k.notInMacro) == None
-  def macroise(): ProgData2 = { 
-      if (isMacro) return this
-      /** one reason why we do not replace param and layer construct by read, is to be able to remove them when they are useless (in non-macro direct affectation)*/
-      val (affect2s, callprocs) = instrs.partition(_.isInstanceOf[Affect[_]])
-      val affects = affect2s.filter(!_.useless) //selects Affects, au passage, removes those useless instr
-      readDependancy(affects, tSymbVar)
-      val cc = components(affects, (_: Instr, y: Instr) => !needStored(y))
-      val (cc1, cc2) = cc.partition(NeedBuiltFun(_)) //cc2 uses only concat and elt, doesn't need a macro
-      val builtFuns = immutable.HashMap.empty ++ cc1.map(setInstr => newFunName() -> builtFun(setInstr))
-      val newInstrs = builtFuns.map { case (k, v) ⇒ Instr(k, v) }.toList ::: cc2.toList.flatten ::: callprocs
-      val defby = readDependancy(newInstrs, tSymbVar);
-      val root = tSymbVar.keys.filter(tSymbVar(_).k.isMin) //.partition(tSymbVar(_).k.isLayer )
-      val (sorted, _) = getGreater((root.toList).map(defby(_)));
-      // writeDependency(newInstrs, tSymbVar); val is = sort(newInstrs).reverse;
-      new ProgData2(sorted.reverse, builtFuns ++ funs.map { case (k, v) ⇒ k → v.macroise() }, tSymbVar, paramD, paramR);
-     
-  }
-  /**The symbol table is not expanded while varialble are, therefore, to find out the type and number of bits of each variables, one must remove the suffixes. */
-  def unfoldSpace(m: Machine): ProgData2 = {
-     if (isMacro) {
-      readDependancy(instrs, tSymbVar)
-      val Scc = components(instrs, (x: Instr, y: Instr) => !x.asInstanceOf[Affect[_]].exp.asInstanceOf[ASTLg].locus.isTransfer)
-      for(i<-instrs) i.align
-      val Tcc = components(instrs, (x: Instr, y: Instr) => x.asInstanceOf[Affect[_]].exp.asInstanceOf[ASTLg].locus.isTransfer)
- 
-    }
-    val muInstr = instrs.map(_.unfoldSpace(m, tSymbVar)) //faut stocquer les muInstr par affectation, et calculer d'abord quelles sont les registres qui sont repliés.
-
-    new ProgData2(
-      muInstr.flatten,
-      funs.map { case (k, v) ⇒ k → v.unfoldSpace(m) }, tSymbVar, paramD, paramR)
-  }
-}
     //  a.exp.isInstanceOf[Layer[_,_]] 

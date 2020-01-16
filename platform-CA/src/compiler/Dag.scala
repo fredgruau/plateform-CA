@@ -26,7 +26,6 @@ trait Dag[T <: Dag[T]] {
 }
 
 object Dag {
-
   /**
    * Used to instanciate a hashset "visited" of the right type T <: Dag[T]
    */
@@ -104,7 +103,8 @@ object Dag {
     for (src <- all) for (target <- src.neighbor) if (p(src, target)) src.union(target);
     val m = LinkedHashMap.empty ++ all.map(x => (x -> x.root)); // print(m)
     m.groupBy(_._2).map { case (k, v) => v.keys }  
-  }
+  }  
+ 
 
 }
 
